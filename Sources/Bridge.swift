@@ -1,5 +1,10 @@
 import Foundation
 import CoreAudio
+import os
+
+/// Status transitions go to the unified log so field problems can be diagnosed with
+/// `log show --predicate 'subsystem == "local.ADI2Native"'`.
+let bridgeLog = Logger(subsystem: "local.ADI2Native", category: "bridge")
 
 final class Bridge {
     let midi: MIDITransport
@@ -8,8 +13,12 @@ final class Bridge {
     let now: () -> TimeInterval
     var channel: Int { get { settings.channel } set { settings.channel = newValue } }
     var range: VolumeRange { settings.range(channel) }
-    var status = L("正在讀取 ADI-2…", "Reading ADI-2…")
-    private(set) var failureMessage:String?
+    var status = L("正在讀取 ADI-2…", "Reading ADI-2…") {
+        didSet { if status != oldValue { bridgeLog.info("status: \(self.status, privacy: .public) enabled=\(self.enabled) wanted=\(self.wanted) connected=\(self.connected)") } }
+    }
+    private(set) var failureMessage:String? {
+        didSet { if let failureMessage { bridgeLog.error("failure: \(failureMessage, privacy: .public)") } }
+    }
     private(set) var routeName=L("讀取中…", "Loading…")
     private var lastPoll:TimeInterval = -1e9
     var controlSummary:String {
@@ -85,6 +94,7 @@ final class Bridge {
     func willSleep() { sleeping=true; suspend(L("休眠中；喚醒後重新同步", "Sleeping · Will sync after wake")) }
     func didWake() { sleeping=false; lastConnect = -1e9; status=L("已喚醒，等待 ADI-2…", "Awake · Waiting for ADI-2…"); onUpdate?() }
     private func suspend(_ message:String) {
+        bridgeLog.notice("suspend: \(message, privacy: .public) route kept on proxy=\(self.proxy != nil)")
         if enabled || resumeRouteUID == nil { resumeRouteUID=currentRoute() }
         if box != 0 { try? audio.configure(box,"bridgeReady=0") }
         enabled=false; lastActivationAttempt = -1e9; pending.removeAll(); values.removeAll(); presetQueue.removeAll()
