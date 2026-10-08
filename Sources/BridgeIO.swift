@@ -27,7 +27,7 @@ struct SystemAudio: AudioTransport {
     func box() throws->AudioObjectID {
         let result=try Audio.box()
         guard Audio.string(result,kAudioObjectPropertyFirmwareVersion)==Audio.driverProtocol else {
-            throw BridgeError.message(L("需要更新 ADI2Native 音訊驅動：請執行新版 Install.command", "Update the ADI2Native audio driver by running the new installer."))
+            throw BridgeError.message(L("需要更新 Detent 音訊驅動：請執行新版 Install.command", "Update the Detent audio driver by running the new installer."))
         }
         return result
     }

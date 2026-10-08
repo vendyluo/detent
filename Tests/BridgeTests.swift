@@ -2,7 +2,7 @@ import Foundation
 import CoreAudio
 @main struct Tests {
     static func main()throws {
-        let key="local.ADI2Native.Tests.\(UUID())", defaults=UserDefaults(suiteName:key)!
+        let key="local.Detent.Tests.\(UUID())", defaults=UserDefaults(suiteName:key)!
         defer { defaults.removePersistentDomain(forName:key) }
         let settings=Settings(defaults), clock=Clock(), midi=FakeMIDI(), audio=FakeAudio()
         let b=try Bridge(midi:midi,audio:audio,settings:settings,now:{clock.time},startTimer:false)
@@ -81,7 +81,7 @@ import CoreAudio
         midi.acknowledge=true;midi.snapshot();clock.time += 0.5;b2.tick();assert(audio.gate)
         // Balance survives syncing, and the louder side sets the DAC level.
         do {
-            let suite="local.ADI2Native.BalanceTests.\(UUID())",balanceDefaults=UserDefaults(suiteName:suite)!
+            let suite="local.Detent.BalanceTests.\(UUID())",balanceDefaults=UserDefaults(suiteName:suite)!
             defer { balanceDefaults.removePersistentDomain(forName:suite) }
             let m=FakeMIDI(),a=FakeAudio(),t=Clock()
             let bb=try Bridge(midi:m,audio:a,settings:Settings(balanceDefaults),now:{t.time},startTimer:false)
@@ -97,7 +97,7 @@ import CoreAudio
         print("PASS: left/right balance is preserved through sync and full balance does not mute")
         // The IEM jack flag arrives on the Line Out address and follows plugging.
         do {
-            let m=FakeMIDI(),t=Clock(),suite="local.ADI2Native.JackTests.\(UUID())",d=UserDefaults(suiteName:suite)!
+            let m=FakeMIDI(),t=Clock(),suite="local.Detent.JackTests.\(UUID())",d=UserDefaults(suiteName:suite)!
             defer { d.removePersistentDomain(forName:suite) }
             let jb=try Bridge(midi:m,audio:FakeAudio(),settings:Settings(d),now:{t.time},startTimer:false)
             assert(jb.iemPlugged == nil)
@@ -107,7 +107,7 @@ import CoreAudio
         print("PASS: IEM jack state is read from the Line Out address")
         // Below the slider floor, steps move from the real level instead of jumping to the floor.
         do {
-            let suite="local.ADI2Native.FloorTests.\(UUID())",floorDefaults=UserDefaults(suiteName:suite)!
+            let suite="local.Detent.FloorTests.\(UUID())",floorDefaults=UserDefaults(suiteName:suite)!
             defer { floorDefaults.removePersistentDomain(forName:suite) }
             let m=FakeMIDI(),a=FakeAudio(),t=Clock()
             m.state[3]?[12] = -1000
@@ -123,7 +123,7 @@ import CoreAudio
         print("PASS: below the slider floor, keys and buttons step from the real level; no jump to the floor")
         // Picking the proxy in Control Center while native control is off enables it, or falls back to the DAC.
         do {
-            let suite="local.ADI2Native.PickTests.\(UUID())",pickDefaults=UserDefaults(suiteName:suite)!
+            let suite="local.Detent.PickTests.\(UUID())",pickDefaults=UserDefaults(suiteName:suite)!
             defer { pickDefaults.removePersistentDomain(forName:suite) }
             let m=FakeMIDI(),a=FakeAudio(),t=Clock()
             let pb=try Bridge(midi:m,audio:a,settings:Settings(pickDefaults),now:{t.time},startTimer:false)
@@ -137,7 +137,7 @@ import CoreAudio
         print("PASS: selecting the proxy output with native control off enables it, or routes to the physical DAC when it cannot")
         // A locked output hands audio to the physical DAC instead of leaving a silent proxy, then resumes.
         do {
-            let suite="local.ADI2Native.LockTests.\(UUID())",lockDefaults=UserDefaults(suiteName:suite)!
+            let suite="local.Detent.LockTests.\(UUID())",lockDefaults=UserDefaults(suiteName:suite)!
             defer { lockDefaults.removePersistentDomain(forName:suite) }
             let m=FakeMIDI(),a=FakeAudio(),t=Clock()
             m.state[6]?[13]=1;a.normal=3;a.system=3

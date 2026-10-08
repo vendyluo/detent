@@ -74,7 +74,7 @@ extension AppDelegate:NSTableViewDataSource,NSTableViewDelegate {
     }
     func buildSidebar(_ sideView:NSView) {
         let mark=NSImageView(image:StatusKnob.image(position:0.62,amplitude:0.8));mark.contentTintColor = .controlAccentColor
-        let brand=NSTextField(labelWithString:"ADI2 Native");brand.font = .systemFont(ofSize:15,weight:.bold)
+        let brand=NSTextField(labelWithString:"Detent");brand.font = .systemFont(ofSize:15,weight:.bold)
         let sub=NSTextField(labelWithString:"RME ADI-2 DAC");sub.font = .systemFont(ofSize:11);sub.textColor = .secondaryLabelColor
         let title=row([mark,stack([brand,sub],spacing:1)]);title.spacing=8
         let navScroll=NSScrollView();navScroll.drawsBackground=false;navScroll.documentView=navigation
@@ -95,7 +95,7 @@ extension AppDelegate:NSTableViewDataSource,NSTableViewDelegate {
     func buildWindow() {
         window=NSWindow(contentRect:NSRect(x:0,y:0,width:1000,height:760),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
         window.titleVisibility = .hidden;window.titlebarAppearsTransparent=true;window.titlebarSeparatorStyle = .none;window.isMovableByWindowBackground=true
-        window.delegate=self;window.isReleasedWhenClosed=false;window.title="ADI2 Native";window.minSize=NSSize(width:900,height:660);window.center();window.setFrameAutosaveName("ADI2NativeMain")
+        window.delegate=self;window.isReleasedWhenClosed=false;window.title="Detent";window.minSize=NSSize(width:900,height:660);window.center();window.setFrameAutosaveName("DetentMain")
         let split=NSSplitViewController(), side=NSViewController(), main=NSViewController()
         // macOS 26+ draws the sidebar as floating Liquid Glass; a custom material would cover it.
         let sideView:NSView

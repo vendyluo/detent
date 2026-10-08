@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-ADI2_CACHE="${ADI2_BUILD_CACHE:-${TMPDIR:-/tmp}/adi2native-swift-cache}"
+ADI2_CACHE="${ADI2_BUILD_CACHE:-${TMPDIR:-/tmp}/detent-swift-cache}"
 mkdir -p "$ADI2_CACHE" build
 core=(Sources/Localization.swift Tests/TestDoubles.swift Sources/Audio.swift Sources/Bridge.swift Sources/BridgeIO.swift Sources/Settings.swift Sources/MIDI.swift Sources/RMEProtocol.swift Sources/EQ.swift)
 for suite in ProtocolTests BridgeTests EQTests; do

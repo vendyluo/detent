@@ -148,7 +148,7 @@ let preview=try png(width:1100,height:600,logical:NSSize(width:1100,height:600))
     func text(_ s:String,_ x:CGFloat,_ y:CGFloat,_ size:CGFloat,_ c:NSColor) {
         (s as NSString).draw(at:NSPoint(x:x,y:y),withAttributes:[.font:NSFont.systemFont(ofSize:size,weight:.medium),.foregroundColor:c])
     }
-    text("ADI2 Native",48,538,26,color(0x1D2A3D))
+    text("Detent",48,538,26,color(0x1D2A3D))
     NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current!.cgContext.translateBy(x:25,y:100); NSGraphicsContext.current!.cgContext.scaleBy(x:0.42,y:0.42); appIcon(); NSGraphicsContext.restoreGraphicsState()
     text("APP ICON",508,477,13,color(0x57657C))
     for (index,size) in [128,64,32,16].enumerated() {

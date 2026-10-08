@@ -1,8 +1,10 @@
-<p align="center"><img src="Assets/Logo.svg" width="128" alt="ADI2 Native icon"></p>
+<p align="center"><img src="Assets/Logo.svg" width="128" alt="Detent icon"></p>
 
-# ADI2 Native
+# Detent
 
 Native macOS volume control for the **RME ADI-2 DAC**, with a menu bar app and built-in EQ editor.
+
+Detent was previously named ADI2 Native. Installing 0.6 removes the old driver and carries your preferences over.
 
 [繁體中文](README.zh-TW.md)
 
@@ -19,14 +21,14 @@ A Swift/AppKit app controls the DAC's hardware volume through USB MIDI. A Core A
 
 ## Status and requirements
 
-Source release: **App 0.5.0 / driver 0.3.1**. Local development build, not a notarized 1.0 release.
+Source release: **App 0.6.0 / driver 0.4.0**. Local development build, not a notarized 1.0 release.
 
 - Apple Silicon Mac; the build script targets macOS 13 or newer. Local hardware testing has been on macOS 27; other OS versions are not yet validated.
 - Xcode Command Line Tools (`xcode-select --install`).
 - Exactly one RME ADI-2 DAC connected over USB, with firmware supporting the official MIDI remote protocol. ADI-2 Pro and 2/4 Pro are not supported.
 - Administrator authentication to install the HAL driver.
 
-Seven test suites pass, including simulated failures and recovery. The latest 0.5.0 / 0.3.1 changes have passed compilation and automated tests; final installation/hardware verification is pending. Extended playback, physical reconnect and sleep/wake coverage across machines remains incomplete.
+Seven test suites pass, including simulated failures and recovery. The latest 0.6.0 / 0.4.0 changes have passed compilation and automated tests; final installation/hardware verification is pending. Extended playback, physical reconnect and sleep/wake coverage across machines remains incomplete.
 
 ## Build and test
 
@@ -41,7 +43,7 @@ Icons are generated locally by `Scripts/render-icons.swift`, which also writes t
 
 ## Install and use
 
-1. Quit any running ADI2 Native app.
+1. Quit any running Detent app.
 2. Run `./Install.command` and complete the macOS administrator prompt. Installation briefly restarts the Mac audio service.
 3. Choose a control target and enable native volume control in the app.
 4. Keep the app running; closing the window leaves menu bar control active.
@@ -52,7 +54,7 @@ To uninstall, quit the app and run `./Uninstall.command`. This removes the HAL d
 
 ## Behavior and limitations
 
-- The proxy is a separate output named `ADI-2 Native`; it does not modify the original USB device.
+- The proxy is a separate output named `Detent`; it does not modify the original USB device.
 - The proxy does not apply a second digital attenuation: hardware gain is set on the DAC. It adds buffering (512 frames by default).
 - The volume ceiling is software-enforced while native control is enabled; the physical knob can briefly exceed it. It is not a hardware hearing-protection limiter.
 - Selecting Line Out/Phones/IEM selects the controlled volume, not the DAC's physical audio route.
@@ -69,4 +71,4 @@ Hardware verification is available via `./Scripts/verify-live.sh`. It changes ro
 
 Original code and modifications: [MIT](LICENSE). Bundled third-party code retains its own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Independent community project; not affiliated with RME or Apple.
+Independent community project; not affiliated with, sponsored or endorsed by RME or Apple. RME and ADI-2 are trademarks of their respective owners and are used here only to describe compatible hardware.

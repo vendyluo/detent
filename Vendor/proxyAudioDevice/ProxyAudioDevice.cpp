@@ -772,7 +772,7 @@ OSStatus ProxyAudioDevice::AbortDeviceConfigurationChange(AudioServerPlugInDrive
                    "ProxyAudio_PerformDeviceConfigurationChange: bad device ID");
 
     syslog(LOG_ERR,
-           "ProxyAudio error: was not able to change the sample rate of ADI-2 Native to %llu",
+           "ProxyAudio error: was not able to change the sample rate of Detent to %llu",
            inChangeAction);
 
 Done:
@@ -2031,7 +2031,7 @@ OSStatus ProxyAudioDevice::GetBoxPropertyData(AudioServerPlugInDriverRef inDrive
                            Done,
                            "GetBoxPropertyData: not enough space for the return value of "
                            "kAudioObjectPropertyFirmwareVersion for the box");
-            *((CFStringRef *)outData) = CFSTR("ADI2Native/4");
+            *((CFStringRef *)outData) = CFSTR("Detent/4");
             *outDataSize = sizeof(CFStringRef);
             break;
 
@@ -2728,7 +2728,7 @@ OSStatus ProxyAudioDevice::GetDevicePropertyData(AudioServerPlugInDriverRef inDr
                            Done,
                            "GetDevicePropertyData: not enough space for the return value of "
                            "kAudioObjectPropertyManufacturer for the device");
-            *((CFStringRef *)outData) = CFSTR("ADI2Native");
+            *((CFStringRef *)outData) = CFSTR("Detent");
             *outDataSize = sizeof(CFStringRef);
             break;
 
@@ -5528,7 +5528,7 @@ void ProxyAudioDevice::parseConfigurationString(CFStringRef configString, Config
 }
 
 ProxyAudioDevice::CommandResult ProxyAudioDevice::handleConfigurationCommand(CFStringRef command, pid_t sender) {
-    static const CFStringRef prefix = CFSTR("ADI2Native/4:");
+    static const CFStringRef prefix = CFSTR("Detent/4:");
     if (command == NULL || !CFStringHasPrefix(command, prefix)) {
         return CommandResult::notACommand;
     }
@@ -5648,11 +5648,11 @@ CFStringRef ProxyAudioDevice::copyDeviceNameFromStorage()
     if (result == NULL) {
         CFBundleRef bundle = CFBundleGetBundleWithIdentifier(CFSTR(kPlugIn_BundleID));
         result = CFBundleCopyLocalizedString(
-            bundle, CFSTR("DeviceName"), CFSTR("ADI-2 Native"), CFSTR("Localizable"));
+            bundle, CFSTR("DeviceName"), CFSTR("Detent"), CFSTR("Localizable"));
     }
 
     if (result == NULL) {
-        result = CFStringCreateCopy(NULL, CFSTR("ADI-2 Native"));
+        result = CFStringCreateCopy(NULL, CFSTR("Detent"));
     }
     
     DebugMsg("ProxyAudio: copyDeviceNameFromStorage finished");

@@ -86,7 +86,7 @@ final class AppDelegate:NSObject,NSApplicationDelegate,NSMenuDelegate,NSWindowDe
         hideDock.state=settings.hideDock ? .on : .off
         openOnLaunch.state=settings.showWindowOnLaunch ? .on : .off
         let value=(bridge.connected ? bridge.db : nil).map { String(format:"%.1f",$0) } ?? "—"
-        item.button?.title=settings.showDB ? " \(value)" : "";item.button?.appearsDisabled = !bridge.connected;item.button?.toolTip="ADI2 Native · \(Localization.translated(bridge.status))"
+        item.button?.title=settings.showDB ? " \(value)" : "";item.button?.appearsDisabled = !bridge.connected;item.button?.toolTip="Detent · \(Localization.translated(bridge.status))"
         let range=bridge.range
         let shown=min(range.maximum,max(range.minimum,bridge.db ?? range.minimum))
         dial.minValue=range.minimum;dial.maxValue=range.maximum;if !dial.tracking { dial.value=shown }
@@ -173,13 +173,20 @@ final class AppDelegate:NSObject,NSApplicationDelegate,NSMenuDelegate,NSWindowDe
     }
 }
 @main struct Application {
+    /// Before 0.6 the app was named ADI2 Native; carry its preferences over once.
+    static func migrateLegacyPreferences(_ defaults:UserDefaults = .standard) {
+        guard !defaults.bool(forKey:"migratedLegacyPreferences") else { return }
+        for (key,value) in defaults.persistentDomain(forName:"local.ADI2Native.App") ?? [:] where defaults.object(forKey:key) == nil { defaults.set(value,forKey:key) }
+        defaults.set(true,forKey:"migratedLegacyPreferences")
+    }
     static func main()throws {
+        migrateLegacyPreferences()
         if CommandLine.arguments.contains("--probe") {
             let midi=try RMEConnection();Audio.devices().forEach { print("AUDIO \($0.id) \($0.name) UID=\($0.uid)") }
             midi.onMessage = { msg in for p in RMEProtocol.parameters(msg) { print(p) } }
             try midi.connect();RunLoop.main.run(until:Date().addingTimeInterval(3));return
         }
-        if let existing=NSRunningApplication.runningApplications(withBundleIdentifier:"local.ADI2Native.App").first(where:{$0.processIdentifier != ProcessInfo.processInfo.processIdentifier}), let url=existing.bundleURL {
+        if let existing=NSRunningApplication.runningApplications(withBundleIdentifier:"local.Detent.App").first(where:{$0.processIdentifier != ProcessInfo.processInfo.processIdentifier}), let url=existing.bundleURL {
             NSWorkspace.shared.openApplication(at:url,configuration:NSWorkspace.OpenConfiguration(),completionHandler:nil)
             return
         }

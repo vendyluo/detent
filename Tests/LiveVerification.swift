@@ -9,7 +9,7 @@ import CoreAudio
   if !condition { throw BridgeError.message("FAIL: \(label)") };print("PASS: \(label)");fflush(stdout)
  }
  static func main()throws {
-  let suite="local.ADI2Native.LiveTest.\(UUID())", defaults=UserDefaults(suiteName:suite)!
+  let suite="local.Detent.LiveTest.\(UUID())", defaults=UserDefaults(suiteName:suite)!
   defer { defaults.removePersistentDomain(forName:suite) }
   let settings=Settings(defaults)
   settings.channel=Int(CommandLine.arguments.dropFirst().first ?? "3") ?? 3

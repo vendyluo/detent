@@ -2,7 +2,7 @@ import AppKit
 @main struct PolishTests {
  static func main()throws {
   _ = NSApplication.shared
-  let suite="local.ADI2Native.PolishTests.\(UUID())",defaults=UserDefaults(suiteName:suite)!
+  let suite="local.Detent.PolishTests.\(UUID())",defaults=UserDefaults(suiteName:suite)!
   defer { defaults.removePersistentDomain(forName:suite) }
   let settings=Settings(defaults)
   assert(settings.hideDock && !settings.showWindowOnLaunch && !settings.showDB)

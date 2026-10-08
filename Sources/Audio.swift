@@ -7,8 +7,8 @@ struct AudioEndpoint {
     let name: String
 }
 enum Audio {
-    static let proxyUID = "ADI2Native_Device"
-    static let boxUID = "ADI2Native_Box"
+    static let proxyUID = "Detent_Device"
+    static let boxUID = "Detent_Box"
     static func address(_ selector: AudioObjectPropertySelector, _ scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal, _ element: UInt32 = 0) -> AudioObjectPropertyAddress {
         AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: element)
     }
@@ -38,12 +38,12 @@ enum Audio {
         var uid = Unmanaged.passUnretained(text).toOpaque(), result: AudioObjectID = 0
         var a = address(kAudioHardwarePropertyTranslateUIDToBox), size = UInt32(MemoryLayout<AudioObjectID>.size)
         try check(AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &a, UInt32(MemoryLayout<CFString>.size), &uid, &size, &result), "Find bridge box")
-        guard result != 0 else { throw BridgeError.message(L("尚未安裝 ADI2Native 音訊驅動", "ADI2Native audio driver is not installed")) }
+        guard result != 0 else { throw BridgeError.message(L("尚未安裝 Detent 音訊驅動", "Detent audio driver is not installed")) }
         return result
     }
     /// Driver protocol 4: one prefixed name write; the driver identifies the sender by pid and
     /// rejects invalid commands with an error instead of silently ignoring them.
-    static let driverProtocol = "ADI2Native/4"
+    static let driverProtocol = "Detent/4"
     static func configure(_ box: AudioObjectID, _ command: String) throws {
         let text = "\(driverProtocol):\(command)" as CFString
         try withExtendedLifetime(text) {

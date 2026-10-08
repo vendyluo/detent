@@ -23,10 +23,10 @@ enum {
     kObjectID_DataSource_Output_Master = 8
 };
 
-#define kPlugIn_BundleID "local.ADI2Native.Driver"
-#define kBox_UID "ADI2Native_Box"
-#define kDevice_UID "ADI2Native_Device"
-#define kDevice_ModelUID "ADI2Native_Model"
+#define kPlugIn_BundleID "local.Detent.Driver"
+#define kBox_UID "Detent_Box"
+#define kDevice_UID "Detent_Device"
+#define kDevice_ModelUID "Detent_Model"
 #define kOutputDeviceDefaultBufferFrameSize 512
 #define kOutputDeviceMinBufferFrameSize 4
 #define kOutputDeviceDefaultActiveCondition ActiveCondition::userActive
@@ -102,7 +102,7 @@ class ProxyAudioDevice {
     bool isConfigurationString(CFStringRef val);
     void parseConfigurationString(CFStringRef configString, ConfigType &action, CFStringRef &value);
     enum class CommandResult { notACommand, applied, rejected };
-    /// Applies an "ADI2Native/4:key=value" box-name write in one step. The sender is the
+    /// Applies an "Detent/4:key=value" box-name write in one step. The sender is the
     /// HAL-reported client pid, so no separate Identify write can be interleaved by another process.
     CommandResult handleConfigurationCommand(CFStringRef command, pid_t sender);
     bool setConfigurationValue(ConfigType action, CFStringRef value);

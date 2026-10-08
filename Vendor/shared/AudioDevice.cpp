@@ -211,7 +211,7 @@ void AudioDevice::setupIOProc(AudioDeviceIOProc inProc, void *clientData) {
             err = AudioObjectSetPropertyData(id, &address, 0, nullptr, usageSize, usage);
         }
         if (err != noErr) {
-            syslog(LOG_ERR, "ADI2Native: refusing playback: cannot disable input streams (%d)", int(err));
+            syslog(LOG_ERR, "Detent: refusing playback: cannot disable input streams (%d)", int(err));
             lastIOError = err;
             destroyIOProc();
         }

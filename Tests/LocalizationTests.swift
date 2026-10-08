@@ -2,7 +2,7 @@ import AppKit
 @main struct LocalizationTests {
  static func main()throws {
   _ = NSApplication.shared
-  let suite="local.ADI2Native.LanguageTests.\(UUID())",defaults=UserDefaults(suiteName:suite)!
+  let suite="local.Detent.LanguageTests.\(UUID())",defaults=UserDefaults(suiteName:suite)!
   defer { defaults.removePersistentDomain(forName:suite);Localization.language="zh-Hant" }
   Localization.language="zh-Hant"
   let midi=FakeMIDI(),audio=FakeAudio()

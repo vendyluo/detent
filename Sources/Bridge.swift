@@ -3,8 +3,8 @@ import CoreAudio
 import os
 
 /// Status transitions go to the unified log so field problems can be diagnosed with
-/// `log show --predicate 'subsystem == "local.ADI2Native"'`.
-let bridgeLog = Logger(subsystem: "local.ADI2Native", category: "bridge")
+/// `log show --predicate 'subsystem == "local.Detent"'`.
+let bridgeLog = Logger(subsystem: "local.Detent", category: "bridge")
 
 final class Bridge {
     let midi: MIDITransport
@@ -125,13 +125,13 @@ final class Bridge {
         let targets=devices.filter { $0.name.contains("ADI-2 DAC") && $0.uid != Audio.proxyUID }
         guard targets.count == 1 else { throw BridgeError.message(L("需要恰好一台 ADI-2 DAC", "Exactly one ADI-2 DAC is required")) }
         if let bound=settings.deviceUID, bound != targets[0].uid { throw BridgeError.message(L("連接的 DAC 與先前不同；請先重新綁定裝置", "This DAC differs from the paired device. Pair it again first.")) }
-        guard let p=devices.first(where:{$0.uid == Audio.proxyUID}) else { throw BridgeError.message(L("找不到 ADI2Native 驅動，請執行安裝程式", "ADI2Native driver not found. Run the installer.")) }
+        guard let p=devices.first(where:{$0.uid == Audio.proxyUID}) else { throw BridgeError.message(L("找不到 Detent 驅動，請執行安裝程式", "Detent driver not found. Run the installer.")) }
         box=try audio.box(); proxy=p
         try audio.configure(box,"bridgeReady=0")
         try audio.configure(box,"outputDevice=\(targets[0].uid)")
         try audio.configure(box,"outputDeviceActiveCondition=2")
         try audio.configure(box,"outputDeviceBufferFrameSize=512")
-        try audio.configure(box,"deviceName=ADI-2 Native")
+        try audio.configure(box,"deviceName=Detent")
         try audio.configure(box,"volumeRange=\(range.minimum),\(range.maximum)")
         let route=try audio.defaultDevice(false), system=try audio.defaultDevice(true)
         // After a lock pause the route is the physical DAC we chose; keep the user's original output for later restore.

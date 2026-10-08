@@ -7,14 +7,14 @@ cd "$(dirname "$0")/.."
 ./Scripts/build.sh
 stage="$(mktemp -d "${TMPDIR:-/tmp}/adi2-release.XXXXXX")"
 trap 'rm -rf "$stage"' EXIT
-mkdir -p "$stage/ADI2 Native/build" "$stage/ADI2 Native/Scripts" build/release
-for bundle in 'ADI2 Native.app' ADI2Native.driver; do
- ditto "build/$bundle" "$stage/ADI2 Native/build/$bundle"
+mkdir -p "$stage/Detent/build" "$stage/Detent/Scripts" build/release
+for bundle in 'Detent.app' Detent.driver; do
+ ditto "build/$bundle" "$stage/Detent/build/$bundle"
 done
-cp Install.command Uninstall.command README.zh-TW.md LICENSE THIRD_PARTY_NOTICES.md "$stage/ADI2 Native/"
-cp Scripts/install-driver.sh Scripts/uninstall-driver.sh "$stage/ADI2 Native/Scripts/"
+cp Install.command Uninstall.command README.zh-TW.md LICENSE THIRD_PARTY_NOTICES.md "$stage/Detent/"
+cp Scripts/install-driver.sh Scripts/uninstall-driver.sh "$stage/Detent/Scripts/"
 dmg="$PWD/build/release/ADI2-Native.dmg"
-hdiutil create -ov -format UDZO -volname 'ADI2 Native' -srcfolder "$stage" "$dmg"
+hdiutil create -ov -format UDZO -volname 'Detent' -srcfolder "$stage" "$dmg"
 codesign --force --timestamp --sign "$ADI2_SIGN_IDENTITY" "$dmg"
 codesign --verify --strict "$dmg"
 if [[ -z "${ADI2_NOTARY_PROFILE:-}" ]]; then

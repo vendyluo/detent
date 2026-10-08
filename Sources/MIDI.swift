@@ -16,7 +16,7 @@ final class RMEConnection: MIDITransport {
     /// connection refCon, so blocks queued before a disconnect cannot revive a dropped link.
     private var generation = 1
     init() throws {
-        try check(MIDIClientCreateWithBlock("ADI2 Native" as CFString, &client) { [weak self] _ in
+        try check(MIDIClientCreateWithBlock("Detent" as CFString, &client) { [weak self] _ in
             DispatchQueue.main.async { self?.onTopology?() }
         }, "MIDI client")
         try check(MIDIOutputPortCreate(client, "ADI2 output" as CFString, &output), "MIDI output")

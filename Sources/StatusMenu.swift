@@ -62,7 +62,7 @@ extension AppDelegate {
         item=NSStatusBar.system.statusItem(withLength:NSStatusItem.variableLength)
         statusKnob=StatusKnob(item.button)
         item.button?.image=StatusKnob.image(position:0.5,amplitude:0)
-        item.button?.imagePosition = .imageLeading;item.button?.font = .monospacedDigitSystemFont(ofSize:12,weight:.regular);item.button?.setAccessibilityLabel(L("ADI2 Native 音量控制", "ADI2 Native volume control"))
+        item.button?.imagePosition = .imageLeading;item.button?.font = .monospacedDigitSystemFont(ofSize:12,weight:.regular);item.button?.setAccessibilityLabel(L("Detent 音量控制", "Detent volume control"))
         let menu=NSMenu();menu.autoenablesItems=false;menu.delegate=self;item.menu=menu
 
         let panel=MenuPanel();menuPanel=panel;slider=panel.slider
@@ -81,7 +81,7 @@ extension AppDelegate {
         _ = menuItem(L("編輯 EQ…", "Edit EQ…"),#selector(showEQ),menu)
 
         menu.addItem(.separator())
-        _ = menuItem(L("開啟 ADI2 Native", "Open ADI2 Native"),#selector(show),menu)
+        _ = menuItem(L("開啟 Detent", "Open Detent"),#selector(show),menu)
         let prefs=menuItem(L("設定…", "Settings…"),#selector(showSettings),menu);prefs.keyEquivalent=","
         let quitEntry=menuItem(L("結束並還原輸出", "Quit and restore output"),#selector(quit),menu);quitEntry.keyEquivalent="q"
 
@@ -89,7 +89,7 @@ extension AppDelegate {
         _ = menuItem(L("顯示控制面板", "Open control panel"),#selector(show),appMenu)
         let preferences=menuItem(L("設定…", "Settings…"),#selector(showSettings),appMenu);preferences.keyEquivalent=","
         appMenu.addItem(.separator())
-        let quitMain=menuItem(L("結束 ADI2 Native", "Quit ADI2 Native"),#selector(quit),appMenu);quitMain.keyEquivalent="q";NSApp.mainMenu=main
+        let quitMain=menuItem(L("結束 Detent", "Quit Detent"),#selector(quit),appMenu);quitMain.keyEquivalent="q";NSApp.mainMenu=main
     }
     func sectionHeader(_ title:String)->NSMenuItem {
         if #available(macOS 14,*) { return .sectionHeader(title:title) }

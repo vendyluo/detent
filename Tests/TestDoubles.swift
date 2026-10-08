@@ -46,7 +46,7 @@ final class FakeAudio:AudioTransport {
     func checkPlayback(_ box:AudioObjectID)throws { if playbackError { throw BridgeError.message("playback failed") } }
     func devices()->[AudioEndpoint] {
         (available ? [AudioEndpoint(id:deviceID,uid:"DAC-A",name:"ADI-2 DAC A")] : []) +
-        [AudioEndpoint(id:proxyID,uid:Audio.proxyUID,name:"ADI-2 Native"),AudioEndpoint(id:3,uid:"other",name:"Other output")]
+        [AudioEndpoint(id:proxyID,uid:Audio.proxyUID,name:"Detent"),AudioEndpoint(id:3,uid:"other",name:"Other output")]
     }
     func box()throws->AudioObjectID { 7 }
     func configure(_ b:AudioObjectID,_ s:String)throws { if failRange && s.hasPrefix("volumeRange=") { throw BridgeError.message("range failed") }; configurations.append(s); if s.hasPrefix("bridgeReady=") { gate=s.hasSuffix("1") } }

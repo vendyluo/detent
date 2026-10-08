@@ -28,14 +28,14 @@ int main() {
     assert(d.kVolume_MinDB.load()==-60 && d.kVolume_MaxDB.load()==-20);
     // Protocol 4: one prefixed write applies a command; invalid commands are rejected, other names are renames.
     using R=ProxyAudioDevice::CommandResult;
-    assert(d.handleConfigurationCommand(CFSTR("ADI2Native/4:volumeRange=-50,-10"),42)==R::applied);
+    assert(d.handleConfigurationCommand(CFSTR("Detent/4:volumeRange=-50,-10"),42)==R::applied);
     assert(d.kVolume_MinDB.load()==-50 && d.kVolume_MaxDB.load()==-10);
-    assert(d.handleConfigurationCommand(CFSTR("ADI2Native/4:volumeRange=-5,-10"),42)==R::rejected);
+    assert(d.handleConfigurationCommand(CFSTR("Detent/4:volumeRange=-5,-10"),42)==R::rejected);
     assert(d.kVolume_MinDB.load()==-50 && d.kVolume_MaxDB.load()==-10);
-    assert(d.handleConfigurationCommand(CFSTR("ADI2Native/4:unknown=1"),42)==R::rejected);
+    assert(d.handleConfigurationCommand(CFSTR("Detent/4:unknown=1"),42)==R::rejected);
     assert(d.handleConfigurationCommand(CFSTR("volumeRange=-60,-20"),42)==R::notACommand);
     assert(d.kVolume_MinDB.load()==-50);
-    assert(d.handleConfigurationCommand(CFSTR("ADI2Native/4:bridgeReady=1"),42)==R::applied);
+    assert(d.handleConfigurationCommand(CFSTR("Detent/4:bridgeReady=1"),42)==R::applied);
     d.calculateVolumeFactors(0.9,0.9,false,l,r); assert(l==1 && r==1);
     puts("PASS: atomic prefixed configuration commands; invalid commands rejected; plain names stay box renames");
     puts("PASS: configurable dB range and invalid-range rejection; driver defaults silent; unity pass-through with lease; mute/zero/NaN silence; explicit stop; expired lease; no fallback device");
