@@ -25,7 +25,7 @@ extension AppDelegate {
             if let f=v as? NSTextField, !f.isEditable { f.stringValue=Localization.translated(f.stringValue) }
             if let p=v as? NSPopUpButton {
                 if p === editor.template { editor.fillTemplates() }
-                else if p === editor.preset { if let first=p.item(at:0) { first.title=Localization.translated(first.title) } }
+                else if p === editor.preset { editor.refresh() } // Its titles are built from live DAC state.
                 else if p !== languagePicker, let m=p.menu { menu(m) }
             } else if let b=v as? NSButton { b.title=Localization.translated(b.title) }
             if let label=v.accessibilityLabel() { v.setAccessibilityLabel(Localization.translated(label)) }

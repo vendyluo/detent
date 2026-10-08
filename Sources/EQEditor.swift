@@ -242,7 +242,9 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
         case nil: presetStatus.stringValue=""
         }
         savePreset.isEnabled=editable && draft != nil && validationMessage == nil && !writing && bridge.loadedPresetNames && bridge.presetNames.count == 20
+        preset.item(at:0)?.title=bridge.connected && bridge.eqState != nil ? L("DAC 預設：\(bridge.loadedPresetTitle)", "DAC preset: \(bridge.loadedPresetTitle)") : L("載入 DAC EQ 預設…", "Load DAC EQ preset…")
         for n in 1...20 {
+            preset.item(at:n)?.state=bridge.loadedPreset == n ? .on : .off
             let name=bridge.presetNames[n] ?? L("讀取中…", "Loading…")
             preset.item(at:n)?.title="\(n). \(name.isEmpty ? L("未命名", "Unnamed") : name)\(bridge.emptyPresets.contains(n) ? L("（空白）", " (empty)") : "")"
             preset.item(at:n)?.isEnabled=bridge.presetNames[n] != nil && !bridge.emptyPresets.contains(n)

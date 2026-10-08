@@ -112,6 +112,16 @@ extension Bridge {
         guard (1...20).contains(number), !emptyPresets.contains(number) else { throw BridgeError.message(L("此 EQ 預設為空或尚未確認", "This EQ preset is empty or has not been confirmed")) }
         try send([RMEParameter(channel:eqAddress,index:28,value:number+1)])
     }
+    /// The preset the DAC reports as loaded on this output (EQ Preset Select: 0 Manual, 1 Temp, 2...21 presets).
+    /// An empty slot the device still points at counts as manual.
+    var loadedPreset:Int? {
+        guard let v=selectedPreset, (2...21).contains(v), !emptyPresets.contains(v-1) else { return nil }
+        return v-1
+    }
+    var loadedPresetTitle:String {
+        if let n=loadedPreset { let name=presetNames[n] ?? "";return "\(n). \(name.isEmpty ? L("未命名", "Unnamed") : name)" }
+        return selectedPreset == 1 ? L("暫存", "Temp") : L("手動", "Manual")
+    }
     func applyEQ(_ state:EQState)throws { try send(state.parameters(output:channel)) }
 }
 /// Starting-point curves derived from published listening research and common mixing practice, not from RME.

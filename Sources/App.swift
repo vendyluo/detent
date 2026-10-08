@@ -107,7 +107,7 @@ final class AppDelegate:NSObject,NSApplicationDelegate,NSMenuDelegate,NSWindowDe
             let name=bridge.presetNames[i.tag] ?? L("讀取中…", "Loading…")
             i.title="\(i.tag). \(name.isEmpty ? L("未命名", "Unnamed") : name)\(bridge.emptyPresets.contains(i.tag) ? L("（空白）", " (empty)") : "")"
             i.isEnabled=bridge.connected && !editor.dirty && bridge.presetNames[i.tag] != nil && !bridge.emptyPresets.contains(i.tag)
-            i.state=bridge.selectedPreset==i.tag+1 && !bridge.emptyPresets.contains(i.tag) ? .on : .off
+            i.state=bridge.loadedPreset == i.tag ? .on : .off
         }
         restore.state=settings.autoRestore ? .on : .off;showDB.state=settings.showDB ? .on : .off
         let login=SMAppService.mainApp.status

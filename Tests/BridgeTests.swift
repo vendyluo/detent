@@ -133,6 +133,10 @@ import CoreAudio
             for _ in 0..<10 { t.time += 0.2;sb.tick() }
             assert(sb.presetWrite == .saved(3) && !sb.emptyPresets.contains(3) && sb.presetNames[3] == "Vocals Fwd")
             assert(m.presets[3]?[13*32+4] == -4 && m.presets[3]?[13*32+5] == 120) // Band 1: -2.0 dB at 120 Hz.
+            // The loaded preset is shown by number and name; an empty slot the DAC points at reads as manual.
+            m.hardware(4,28,4);assert(sb.loadedPreset == 3 && sb.loadedPresetTitle.hasSuffix("3. Vocals Fwd"))
+            m.hardware(4,28,6);assert(sb.loadedPreset == nil && sb.selectedPreset == 6)
+            m.hardware(4,28,1);assert(sb.loadedPreset == nil && sb.loadedPresetTitle == L("暫存", "Temp"))
             // A preset that reads back differently is reported, not claimed as saved.
             m.corruptPresets=true;try sb.savePreset(4,name:"Bad",state:state)
             for _ in 0..<30 { t.time += 0.2;sb.tick() }
