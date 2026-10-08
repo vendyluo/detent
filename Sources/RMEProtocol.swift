@@ -19,8 +19,13 @@ enum RMEProtocol {
             if p.index==12 { return (-1145...60).contains(p.value) }
             return [11,15].contains(p.index) && (0...1).contains(p.value)
         }
-        guard [4,5,7,8,10,11].contains(p.channel) else { return false }
-        let left=[4,7,10].contains(p.channel)
+        guard [4,5,7,8,10,11,13,14].contains(p.channel) else { return false }
+        let left=[4,7,10,13].contains(p.channel), preset=p.channel >= 13
+        if preset {
+            // Preset buffers carry band and Bass/Treble data plus the flag word that commits them.
+            if p.index == 1 { return p.channel == 13 && presetFlag(p.value) != nil }
+            if [2,27,28].contains(p.index) { return false }
+        } else if p.index == 1 { return false }
         switch p.index {
         case 2,20,27: return left && (0...1).contains(p.value)
         case 3: return (0...3).contains(p.value)
@@ -53,6 +58,22 @@ enum RMEProtocol {
         return b+[0xF7]
     }
     static func set(channel:Int,index:Int,value:Int)->[UInt8] { try! message([RMEParameter(channel:channel,index:index,value:value)]) }
+    /// EQ-Preset flag word on address 13, index 1 (RME's table says 2; its own example and the hardware use 1).
+    /// Bits 8..4 hold the preset number counted from zero, bit 0 the Dual EQ flag. Never the "empty" pattern.
+    static func presetFlag(number:Int,dual:Bool)->Int { (number-1)<<4 | (dual ? 1 : 0) }
+    static func presetFlag(_ value:Int)->(number:Int,dual:Bool)? {
+        let number=(value>>4)+1
+        guard (1...20).contains(number), value & 15 <= 1 else { return nil }
+        return (number,value & 1 == 1)
+    }
+    /// Preset names travel as 14 right-aligned ASCII characters plus two zero bytes, as the device sends them.
+    static let presetNameLength=12
+    static func presetNameMessage(_ number:Int,_ name:String)->[UInt8]? {
+        guard (1...20).contains(number), (1...presetNameLength).contains(name.count),
+              name.unicodeScalars.allSatisfy({ (32...126).contains($0.value) }) else { return nil }
+        let padded=String(repeating:" ",count:14-name.count)+name
+        return [0xF0,0,0x20,0x0D,device,6,UInt8(number)]+Array(padded.utf8)+[0,0,0xF7]
+    }
     static func requestPreset(_ number:Int)->[UInt8] {
         precondition((1...20).contains(number))
         return [0xF0,0,0x20,0x0D,device,3,UInt8(number+9),0xF7]

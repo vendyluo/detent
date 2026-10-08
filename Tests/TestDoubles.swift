@@ -7,6 +7,9 @@ final class FakeMIDI:MIDITransport {
     var present=true, linked=false, acknowledge=true
     var state:[Int:[Int:Int]]=[3:[12:-100,13:0,15:0],6:[12:-300,13:0,15:0],9:[12:-165,13:0,15:0]]
     var writes:[[UInt8]]=[]
+    /// DAC preset memory: address 13/14 writes fill a buffer that the flag word commits to a slot.
+    var presetBuffer:[Int:Int]=[:], presets:[Int:[Int:Int]]=[:], presetNames:[Int:String]=[:]
+    var corruptPresets=false
     func topologyIsCurrent()->Bool { present && linked }
     func connect()throws { guard present else { throw BridgeError.message("offline") }; linked=true; snapshot() }
     func disconnect() { linked=false }
@@ -30,8 +33,25 @@ final class FakeMIDI:MIDITransport {
         if b==RMEProtocol.request { snapshot() }
         else if b[5]==2 {
             var incoming=b; incoming[5]=1
-            for p in RMEProtocol.parameters(incoming) { state[p.channel,default:[:]][p.index]=p.value }
+            let ps=RMEProtocol.parameters(incoming)
+            if ps.allSatisfy({ $0.channel >= 13 }) {
+                for p in ps {
+                    if p.channel == 13 && p.index == 1 { presets[(p.value>>4)+1]=presetBuffer;presetBuffer=[:] }
+                    else { presetBuffer[p.channel*32+p.index]=corruptPresets && p.index == 4 ? p.value+1 : p.value }
+                }
+                return
+            }
+            for p in ps { state[p.channel,default:[:]][p.index]=p.value }
             if acknowledge { onMessage?(incoming) }
+        } else if b[5]==6 {
+            presetNames[Int(b[6])]=String(bytes:b[7..<21],encoding:.ascii)!.trimmingCharacters(in:.whitespaces)
+        } else if b[5]==3, (0x0A...0x1D).contains(b[6]) {
+            let n=Int(b[6])-9
+            if let data=presets[n] {
+                emit([RMEParameter(channel:13,index:1,value:(n-1)<<4)]+data.map { RMEParameter(channel:$0.key/32,index:$0.key%32,value:$0.value) })
+            } else { emit([RMEParameter(channel:13,index:1,value:(n-1)<<4|15)]) }
+            let name=presetNames[n] ?? "EQ Preset \(n)"
+            onMessage?([0xF0,0,0x20,0x0D,0x71,5,UInt8(n)]+Array((String(repeating:" ",count:14-name.count)+name).utf8)+[0,0,0xF7])
         }
     }
 }

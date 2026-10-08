@@ -35,7 +35,18 @@ import Foundation
             do { _ = try applied.parameters(output:6) } catch { assertionFailure("template \(t.name) is out of range: \(error)") }
             assert(applied.enabled && applied.left==applied.right && applied.bass==state.bass && applied.treble==state.treble)
         }
+        assert(EQTemplate.presetNames.count == EQTemplate.all.count && EQTemplate.presetNames.allSatisfy { RMEProtocol.presetNameMessage(1,$0) != nil })
         print("PASS: every EQ template is within DAC ranges and keeps Bass/Treble")
+        // Preset transfer: buffers on 13/14, flag word last on 13/1; names as 14 right-aligned ASCII + 2 zero bytes.
+        var dualState=state;dualState.dual=true
+        let batches=try! dualState.presetParameters(number:5)
+        assert(batches.count == 3 && batches[0].allSatisfy { $0.channel == 13 } && batches[1].allSatisfy { $0.channel == 14 })
+        assert(batches.last! == [RMEParameter(channel:13,index:1,value:4<<4|1)] && RMEProtocol.presetFlag(4<<4|1)! == (5,true))
+        assert(RMEProtocol.presetFlag(4<<4|15) == nil && !batches.joined().contains { [2,27,28].contains($0.index) })
+        for b in batches { _ = try! RMEProtocol.message(b) }
+        assert(RMEProtocol.presetNameMessage(2,"ProPhile 8")! == [0xF0,0,0x20,0x0D,0x71,6,2,0x20,0x20,0x20,0x20,0x50,0x72,0x6F,0x50,0x68,0x69,0x6C,0x65,0x20,0x38,0,0,0xF7])
+        assert(RMEProtocol.presetNameMessage(1,"") == nil && RMEProtocol.presetNameMessage(1,"Thirteen chars") == nil && RMEProtocol.presetNameMessage(21,"x") == nil)
+        print("PASS: DAC preset transfer uses buffers, a final flag word and RME's name format")
         print("PASS: official frequency vector, x10 quantization boundaries, full 5-band/stereo/B-T round trip, EQ validation, preset write protection, preset names, response model")
     }
 }

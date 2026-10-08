@@ -121,6 +121,9 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
     var btFields:[NSTextField]=[]
     let apply=NSButton(title:L("套用到 DAC", "Apply to DAC"),target:nil,action:nil)
     let reload=NSButton(title:L("重新讀取", "Reload"),target:nil,action:nil)
+    let savePreset=NSButton(title:L("存成 DAC 預設…", "Save as DAC preset…"),target:nil,action:nil)
+    let presetStatus=NSTextField(labelWithString:"")
+    var lastTemplate:Int?
     init(bridge:Bridge,report:@escaping(Error)->Void) {
         self.bridge=bridge;self.report=report;super.init()
         view.orientation = .vertical;view.alignment = .leading;view.spacing=12
@@ -158,10 +161,12 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
         let gridHost=Theme.surface(gridRow,radius:20,padding:18)
         view.addArrangedSubview(gridHost);gridHost.widthAnchor.constraint(equalTo:view.widthAnchor).isActive=true
         let actions=NSStackView();actions.spacing=12
-        for b in [apply,discard,reload] { Theme.style(b) }
+        for b in [apply,discard,reload,savePreset] { Theme.style(b) }
+        savePreset.target=self;savePreset.action=#selector(savePresetClicked)
+        presetStatus.font = .systemFont(ofSize:12);presetStatus.textColor = .secondaryLabelColor
         apply.target=self;apply.action=#selector(applyChanges);reload.target=self;reload.action=#selector(reloadHardware)
         discard.target=self;discard.action=#selector(discardDraft);compare.target=self;compare.action=#selector(compareChanged)
-        actions.addArrangedSubview(apply);actions.addArrangedSubview(discard);actions.addArrangedSubview(reload);actions.addArrangedSubview(compare);view.addArrangedSubview(actions)
+        actions.addArrangedSubview(apply);actions.addArrangedSubview(discard);actions.addArrangedSubview(reload);actions.addArrangedSubview(compare);actions.addArrangedSubview(savePreset);actions.addArrangedSubview(presetStatus);view.addArrangedSubview(actions)
         message.font = .systemFont(ofSize:12);message.textColor = .secondaryLabelColor
         message.preferredMaxLayoutWidth=730;view.addArrangedSubview(message)
         refresh()
@@ -229,6 +234,14 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
         reload.isEnabled=bridge.connected
         preset.isEnabled=bridge.connected && !dirty && !pendingApply
         template.isEnabled=editable && draft != nil
+        var writing=false
+        switch bridge.presetWrite {
+        case .verifying(let n)?: writing=true;presetStatus.stringValue=L("正在存入第 \(n) 組並讀回確認…", "Saving preset \(n) and reading it back…");presetStatus.textColor = .secondaryLabelColor
+        case .saved(let n)?: presetStatus.stringValue=L("已存入第 \(n) 組並確認", "Saved to preset \(n) and verified");presetStatus.textColor = .systemGreen
+        case .failed(let n,let why)?: presetStatus.stringValue=L("第 \(n) 組儲存失敗：\(why)", "Preset \(n) failed: \(why)");presetStatus.textColor = .systemOrange
+        case nil: presetStatus.stringValue=""
+        }
+        savePreset.isEnabled=editable && draft != nil && validationMessage == nil && !writing && bridge.loadedPresetNames && bridge.presetNames.count == 20
         for n in 1...20 {
             let name=bridge.presetNames[n] ?? L("讀取中…", "Loading…")
             preset.item(at:n)?.title="\(n). \(name.isEmpty ? L("未命名", "Unnamed") : name)\(bridge.emptyPresets.contains(n) ? L("（空白）", " (empty)") : "")"
@@ -278,7 +291,39 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
         let n=template.selectedTag();template.selectItem(at:0)
         guard n>0, let current=draft else { return }
         let t=EQTemplate.all[n-1]
+        lastTemplate=n-1
         draft=t.applied(to:current);dirty=true;applyFailure=nil;validationMessage=nil;paintFields();changed()
+    }
+    /// Writes the draft (applied or not) into a DAC preset slot. The live EQ is not changed.
+    @objc func savePresetClicked() {
+        guard let window=view.window else { return }
+        let state:EQState
+        do { state=try capture() } catch { report(error);return }
+        let slots=NSPopUpButton(),name=NSTextField(string:lastTemplate.map { EQTemplate.presetNames[$0] } ?? "My EQ")
+        for n in 1...20 {
+            let empty=bridge.emptyPresets.contains(n),label=bridge.presetNames[n] ?? ""
+            slots.addItem(withTitle:"\(n). \(empty ? L("（空白）", "(empty)") : label)");slots.lastItem?.tag=n
+        }
+        if let free=(1...20).first(where:{ bridge.emptyPresets.contains($0) }) { slots.selectItem(withTag:free) }
+        name.placeholderString=L("最多 \(RMEProtocol.presetNameLength) 個英數字元", "Up to \(RMEProtocol.presetNameLength) ASCII characters")
+        let form=NSGridView(views:[[NSTextField(labelWithString:L("存入", "Slot")),slots],[NSTextField(labelWithString:L("名稱", "Name")),name]])
+        form.rowSpacing=8;form.columnSpacing=10;name.widthAnchor.constraint(equalToConstant:220).isActive=true
+        form.frame=NSRect(x:0,y:0,width:290,height:60)
+        let alert=NSAlert();alert.messageText=L("存成 DAC 預設", "Save as DAC preset")
+        alert.informativeText=L("把目前編輯中的 EQ（含未套用的草稿）存進 DAC 的預設，之後可以直接在 DAC 上切換。目前的聲音不會改變。", "Stores the EQ being edited, including unapplied changes, in a DAC preset you can recall on the device. What you hear now does not change.")
+        alert.accessoryView=form;alert.addButton(withTitle:L("儲存", "Save"));alert.addButton(withTitle:L("取消", "Cancel"))
+        alert.window.initialFirstResponder=name
+        alert.beginSheetModal(for:window) { [weak self] response in
+            guard let self, response == .alertFirstButtonReturn else { return }
+            let n=slots.selectedTag(),title=name.stringValue.trimmingCharacters(in:.whitespaces)
+            let save={ do { try self.bridge.savePreset(n,name:title,state:state);self.refresh() } catch { self.report(error) } }
+            guard !self.bridge.emptyPresets.contains(n) else { save();return }
+            let confirm=NSAlert();confirm.alertStyle = .warning
+            confirm.messageText=L("覆蓋第 \(n) 組「\(self.bridge.presetNames[n] ?? "")」？", "Replace preset \(n), “\(self.bridge.presetNames[n] ?? "")”?")
+            confirm.informativeText=L("這一組已經有內容，覆蓋後無法復原。", "This preset is not empty. Replacing it cannot be undone.")
+            confirm.addButton(withTitle:L("覆蓋", "Replace")).hasDestructiveAction=true;confirm.addButton(withTitle:L("取消", "Cancel"))
+            DispatchQueue.main.async { confirm.beginSheetModal(for:window) { if $0 == .alertFirstButtonReturn { save() } } }
+        }
     }
     @objc func presetChanged() {
         let n=preset.selectedTag();preset.selectItem(at:0)

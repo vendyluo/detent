@@ -21,7 +21,7 @@ A Swift/AppKit app controls the DAC's hardware volume through USB MIDI. A Core A
 
 - System volume and DAC volume synchronization; Line Out, Phones and IEM control targets.
 - Rotary volume dial (drag, scroll or arrow keys; ⌥ for 0.1 dB steps), plus menu bar volume/mute controls whose icon shows the current level. Optional Dock icon and launch at login.
-- Five-band EQ, separate left/right editing, Bass/Treble, DAC preset loading, and a response graph whose band handles can be dragged to set frequency and gain.
+- Five-band EQ, separate left/right editing, Bass/Treble, twelve starting-point templates, loading DAC presets and saving the edited EQ into one (verified by reading it back), and a response graph whose band handles can be dragged to set frequency and gain.
 - Per-output volume ranges and a software volume ceiling.
 - Traditional Chinese / English interface. Appearance follows the system or is fixed to Light or Dark; on macOS 26 and later the sidebar, cards and buttons use Liquid Glass.
 - Output-only playback streams, expiring playback lease, and visible driver errors.

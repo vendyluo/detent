@@ -116,6 +116,29 @@ import CoreAudio
             m.hardware(13,1,0);assert(pb.emptyPresets == [2])
         }
         print("PASS: empty DAC EQ presets are recognized and cannot be selected")
+        // Saving to a DAC preset writes the buffers, commits with the flag word, and is verified by reading back.
+        do {
+            let m=FakeMIDI(),t=Clock(),suite="local.Detent.PresetSaveTests.\(UUID())",d=UserDefaults(suiteName:suite)!
+            defer { d.removePersistentDomain(forName:suite) }
+            let eq:[Int:Int]=[2:1,3:1,4:0,5:100,6:5,7:0,8:500,9:10,10:0,11:1000,12:10,13:0,14:5000,15:10,16:1,17:0,18:10000,19:10,20:1,21:-2,22:85,23:9,24:0,25:6500,26:7,27:0,28:0]
+            m.state[3]?[11]=0;m.state[4]=eq;m.state[5]=eq
+            let sb=try Bridge(midi:m,audio:FakeAudio(),settings:Settings(d),now:{t.time},startTimer:false)
+            for _ in 0..<30 { t.time += 0.2;sb.tick() }
+            assert(sb.presetNames.count == 20 && sb.emptyPresets.count == 20)
+            let state=EQTemplate.all[5].applied(to:sb.eqState!)
+            let liveBefore=m.state[4]
+            do { try sb.savePreset(3,name:"日本語",state:state);assertionFailure("accepted a non-ASCII name") } catch {}
+            try sb.savePreset(3,name:"Vocals Fwd",state:state)
+            assert(sb.presetWrite == .verifying(3) && m.state[4] == liveBefore) // The live EQ is untouched.
+            for _ in 0..<10 { t.time += 0.2;sb.tick() }
+            assert(sb.presetWrite == .saved(3) && !sb.emptyPresets.contains(3) && sb.presetNames[3] == "Vocals Fwd")
+            assert(m.presets[3]?[13*32+4] == -4 && m.presets[3]?[13*32+5] == 120) // Band 1: -2.0 dB at 120 Hz.
+            // A preset that reads back differently is reported, not claimed as saved.
+            m.corruptPresets=true;try sb.savePreset(4,name:"Bad",state:state)
+            for _ in 0..<30 { t.time += 0.2;sb.tick() }
+            if case .failed(4,_)? = sb.presetWrite {} else { assertionFailure("mismatch not reported: \(String(describing:sb.presetWrite))") }
+        }
+        print("PASS: saving a DAC EQ preset commits with the flag word, leaves the live EQ alone, and is verified by read-back")
         // Below the slider floor, steps move from the real level instead of jumping to the floor.
         do {
             let suite="local.Detent.FloorTests.\(UUID())",floorDefaults=UserDefaults(suiteName:suite)!

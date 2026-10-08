@@ -60,6 +60,18 @@ struct EQState:Equatable {
         try add(output+1,24,treble.gain,2); try add(output+1,25,treble.frequency); try add(output+1,26,treble.q,10)
         return result
     }
+    /// The same EQ written into the DAC's preset buffers (address 13 left + Bass/Treble, 14 right).
+    /// Ends with the flag word, which makes the device store everything it received into `number`.
+    func presetParameters(number:Int)throws->[[RMEParameter]] {
+        // Ranges are identical to a live output, so validate as Line Out and move addresses 4/5 to 13/14.
+        let output=try parameters(output:3).filter { ($0.channel == 4 || $0.channel == 5) && $0.index != 2 }
+        let left=output.filter { $0.channel == 4 }.map { RMEParameter(channel:13,index:$0.index,value:$0.value) }
+        let right=output.filter { $0.channel == 5 }.map { RMEParameter(channel:14,index:$0.index,value:$0.value) }
+        var batches=[left]
+        if dual { batches.append(right) }
+        batches.append([RMEParameter(channel:13,index:1,value:RMEProtocol.presetFlag(number:number,dual:dual))])
+        return batches
+    }
     func response(frequency:Double,rightChannel:Bool=false,sampleRate:Double=44100)->Double {
         var result:Double=0
         if enabled { for b in rightChannel && dual ? right : left { result += EQResponse.decibels(b,at:frequency,sampleRate:sampleRate) } }
@@ -136,6 +148,8 @@ struct EQTemplate {
         EQTemplate(name:L("減少刺耳", "Less harshness"),note:L("壓 3 kHz 與 6.5 kHz 齒音，高頻略收", "Tames 3 kHz and 6.5 kHz sibilance, softer top end"),
                    bands:[p(100,0,1),p(500,0,1),p(3000,-1.5,1.5),p(6500,-3,2),hs(10000,-1.5)]),
     ] }
+    /// ASCII names that fit a DAC preset, in the same order as `all`.
+    static let presetNames=["Flat","Harman Bass","Loudness","Female Vox","Male Vox","Vocals Fwd","Speech","Warm","Bright","Bass Boost","V-Shape","Less Harsh"]
     /// Applies this curve to both channels; the EQ is switched on, everything else is kept.
     func applied(to state:EQState)->EQState {
         var s=state;s.left=bands;s.right=bands;s.enabled=true;return s

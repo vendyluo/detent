@@ -36,6 +36,13 @@ final class Bridge {
     private(set) var presetNames: [Int:String] = [:]
     private(set) var emptyPresets: Set<Int> = []
     private(set) var loadedPresetNames = false
+    /// Contents of DAC presets as last read back, keyed by preset number, then channel*32+index.
+    private(set) var presetData: [Int:[Int:Int]] = [:]
+    /// The preset whose data the device is currently sending, set by its flag word.
+    private var reportingPreset: Int?
+    enum PresetWrite: Equatable { case verifying(Int), saved(Int), failed(Int,String) }
+    private(set) var presetWrite: PresetWrite?
+    private var presetWriteExpected: [Int:Int] = [:], presetWriteName = "", presetWriteStarted: TimeInterval = 0, presetWriteDataMatched = false
     private var box: AudioObjectID = 0
     private var lastScalar: Float = 0
     private var lastMute = false
@@ -256,12 +263,16 @@ final class Bridge {
             // (verified on hardware, firmware 2023): bits 8..4 are the preset number, all four low bits set means empty.
             if p.channel == 13 && p.index == 1 {
                 let number=(p.value >> 4)+1
-                if p.value & 15 == 15 { emptyPresets.insert(number) } else { emptyPresets.remove(number) }
+                if p.value & 15 == 15 { emptyPresets.insert(number);reportingPreset=nil;presetData[number]=nil }
+                else { emptyPresets.remove(number);reportingPreset=number;presetData[number]=[:] }
+            } else if p.channel == 13 || p.channel == 14, let n=reportingPreset {
+                presetData[n,default:[:]][p.channel*32+p.index]=p.value
             }
             guard p.channel <= 12 else { continue } // Preset transfer buffers are not live settings.
             values[p.channel,default:[:]][p.index]=p.value
             if pending[p.channel*32+p.index]?.value == p.value { pending.removeValue(forKey:p.channel*32+p.index) }
         }
+        checkPresetWrite()
         if synchronized && !loadedPresetNames {
             loadedPresetNames=true; presetQueue=Array(1...20)
         }
@@ -303,6 +314,14 @@ final class Bridge {
         if !connected {
             if now()-lastConnect > 3 { reconnect() }
             if !connected { return }
+        }
+        if case .verifying(let n)? = presetWrite, now()-presetWriteStarted > 4 {
+            // Matching EQ data is what matters; a name the device reformatted is not a failed save.
+            if presetWriteDataMatched { presetWrite = .saved(n) }
+            else {
+                presetWrite = .failed(n,L("DAC 沒有回報存入的內容", "The DAC did not report the saved preset back"))
+                bridgeLog.error("preset \(n, privacy: .public) write not confirmed")
+            }
         }
         if !presetQueue.isEmpty && now()-lastPresetRequest>0.15 {
             let next=presetQueue.removeFirst(); lastPresetRequest=now()
@@ -356,5 +375,42 @@ final class Bridge {
             status=L("原生控制已啟用", "Native control enabled")+" · \(channelName) · \(String(format:"%.1f",db ?? 0)) dB\(hardwareMuted ? L(" · 靜音", " · Muted") : "")"
         } catch { fail(error) }
         onUpdate?()
+    }
+}
+
+extension Bridge {
+    /// Stores `state` in DAC EQ preset `number` under `name`, then reads the preset back to confirm it.
+    /// This writes the DAC's own preset memory; the caller confirms overwriting a preset that is not empty.
+    func savePreset(_ number:Int,name:String,state:EQState) throws {
+        guard connected else { throw BridgeError.message(L("DAC 尚未連接", "DAC is not connected")) }
+        if case .verifying? = presetWrite { throw BridgeError.message(L("上一個預設還在儲存中", "Still saving the previous preset")) }
+        guard let nameMessage=RMEProtocol.presetNameMessage(number,name) else {
+            throw BridgeError.message(L("名稱需為 1～\(RMEProtocol.presetNameLength) 個英數字元", "The name must be 1–\(RMEProtocol.presetNameLength) plain ASCII characters"))
+        }
+        let batches=try state.presetParameters(number:number)
+        // Ignore echoes of the buffer writes; only a flag word from the read-back starts collecting.
+        reportingPreset=nil;presetData[number]=nil
+        presetWriteExpected=[:]
+        for p in batches.dropLast().joined() { let n=RMEProtocol.normalized(p);presetWriteExpected[n.channel*32+n.index]=n.value }
+        presetWriteName=name;presetWriteDataMatched=false
+        for batch in batches { try midi.send(RMEProtocol.message(batch)) }
+        try midi.send(nameMessage)
+        presetWrite = .verifying(number);presetWriteStarted=now()
+        bridgeLog.notice("saving EQ preset \(number, privacy: .public)")
+        // Give the device a moment to store, then ask for the preset and its name.
+        presetQueue.removeAll { $0 == number };presetQueue.insert(number,at:0);lastPresetRequest=now()+0.35
+    }
+    fileprivate func checkPresetWrite() {
+        guard case .verifying(let n)? = presetWrite, reportingPreset == n || presetData[n] != nil, let data=presetData[n] else { return }
+        guard presetWriteExpected.allSatisfy({ data[$0.key] == $0.value }) else {
+            if data.count >= presetWriteExpected.count {
+                presetWrite = .failed(n,L("讀回的內容與送出的不同", "The saved preset does not match what was sent"))
+                bridgeLog.error("preset \(n, privacy: .public) read-back mismatch")
+            }
+            return
+        }
+        presetWriteDataMatched=true
+        guard presetNames[n] == presetWriteName else { return }
+        presetWrite = .saved(n)
     }
 }
