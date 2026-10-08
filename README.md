@@ -8,9 +8,16 @@ Detent was previously named ADI2 Native. Installing 0.6 removes the old driver a
 
 [繁體中文](README.zh-TW.md)
 
+![Detent main window and menu bar panel](Assets/Screenshots/hero.jpg)
+
 A Swift/AppKit app controls the DAC's hardware volume through USB MIDI. A Core Audio HAL proxy forwards stereo PCM, connecting macOS volume keys and Control Center to the DAC's volume setting.
 
 ## Features
+
+<p>
+<img src="Assets/Screenshots/eq.jpg" width="49%" alt="EQ editor with draggable bands and templates">
+<img src="Assets/Screenshots/volume-dark.jpg" width="49%" alt="Volume page in dark mode">
+</p>
 
 - System volume and DAC volume synchronization; Line Out, Phones and IEM control targets.
 - Rotary volume dial (drag, scroll or arrow keys; ⌥ for 0.1 dB steps), plus menu bar volume/mute controls whose icon shows the current level. Optional Dock icon and launch at login.

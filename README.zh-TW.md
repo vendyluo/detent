@@ -8,6 +8,13 @@
 
 [English / 完整技術說明](README.md)
 
+![Detent 主視窗與選單列面板](Assets/Screenshots/hero.jpg)
+
+<p>
+<img src="Assets/Screenshots/eq.jpg" width="49%" alt="可拖曳頻段與套用範本的 EQ 編輯器">
+<img src="Assets/Screenshots/volume-dark.jpg" width="49%" alt="深色模式的音量頁">
+</p>
+
 ## 目前狀態
 
 App **0.6.0**、HAL 驅動 **0.4.0**。2026-09-26 的 DMG 已完成 Developer ID 簽署、Apple 公證及 Gatekeeper 驗證，尚未宣稱正式 1.0。七組自動測試通過；最新版的最終安裝及實機驗證仍待完成。
