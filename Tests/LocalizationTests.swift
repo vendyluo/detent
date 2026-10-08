@@ -25,6 +25,8 @@ import AppKit
   }
   for page in delegate.pages { inspect(page) }
   assert(untranslated.isEmpty,"Untranslated: \(untranslated)")
+  for i in delegate.editor.template.itemArray { for t in [i.title,i.toolTip ?? ""] where t.unicodeScalars.contains(where:{(0x3400...0x9FFF).contains($0.value)}) { untranslated.append(t) } }
+  assert(untranslated.isEmpty,"Untranslated templates: \(untranslated)")
   assert(delegate.editor.apply.title=="Apply to DAC")
   Localization.language="zh-Hant";delegate.localizeInterface()
   assert(delegate.editor.apply.title=="套用到 DAC" && delegate.editor.draft==draft)

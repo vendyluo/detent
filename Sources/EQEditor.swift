@@ -130,8 +130,7 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
         preset.addItem(withTitle:L("載入 DAC EQ 預設…", "Load DAC EQ preset…"))
         for n in 1...20 { preset.addItem(withTitle:L("\(n). 讀取中…", "\(n). Loading…"));preset.lastItem?.tag=n }
         preset.target=self;preset.action=#selector(presetChanged);header.addArrangedSubview(preset)
-        template.addItem(withTitle:L("套用範本…", "Template…"))
-        for (i,t) in EQTemplate.all.enumerated() { template.addItem(withTitle:t.name);template.lastItem?.tag=i+1;template.lastItem?.toolTip=t.note }
+        fillTemplates()
         template.target=self;template.action=#selector(templateChanged);header.addArrangedSubview(template)
         view.addArrangedSubview(header)
         let curveHost=Theme.surface(curve,radius:20,padding:0)
@@ -268,6 +267,11 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
             guard bridge.eqState==baseline else { throw BridgeError.message(L("硬體 EQ 已變動，請先重新讀取", "Device EQ changed. Reload first.")) }
             let state=try capture();expected=try state.parameters(output:bridge.channel).map(RMEProtocol.normalized);applyFailure=nil;pendingApply=true;try bridge.applyEQ(state);refresh()
         } catch { pendingApply=false;expected=[];applyFailure=String(describing:error);refresh();report(error) }
+    }
+    /// Rebuilt on language change; template tags overlap the preset tags the generic menu localizer skips.
+    func fillTemplates() {
+        template.removeAllItems();template.addItem(withTitle:L("套用範本…", "Template…"))
+        for (i,t) in EQTemplate.all.enumerated() { template.addItem(withTitle:t.name);template.lastItem?.tag=i+1;template.lastItem?.toolTip=t.note }
     }
     /// Loads a template into the draft only; nothing reaches the DAC until Apply.
     @objc func templateChanged() {
