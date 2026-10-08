@@ -17,8 +17,8 @@ App **0.6.0**、HAL 驅動 **0.4.0**。2026-09-26 的 DMG 已完成 Developer ID
 ## 建置與安裝
 
 ```sh
-git clone https://github.com/vendyluo/adi2-native.git
-cd adi2-native
+git clone https://github.com/vendyluo/detent.git
+cd detent
 ./Scripts/build.sh
 ./Scripts/test.sh
 ./Install.command

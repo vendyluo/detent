@@ -33,8 +33,8 @@ Seven test suites pass, including simulated failures and recovery. The latest 0.
 ## Build and test
 
 ```sh
-git clone https://github.com/vendyluo/adi2-native.git
-cd adi2-native
+git clone https://github.com/vendyluo/detent.git
+cd detent
 ./Scripts/build.sh
 ./Scripts/test.sh
 ```
