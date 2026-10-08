@@ -116,7 +116,7 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
     let enabled=NSButton(checkboxWithTitle:"EQ",target:nil,action:nil)
     let dual=NSButton(checkboxWithTitle:L("左右獨立 EQ", "Separate left / right EQ"),target:nil,action:nil)
     let bt=NSButton(checkboxWithTitle:"Bass／Treble",target:nil,action:nil)
-    let side=NSPopUpButton(), preset=NSPopUpButton()
+    let side=NSPopUpButton(), preset=NSPopUpButton(), template=NSPopUpButton()
     var types:[NSPopUpButton]=[], frequencies:[NSTextField]=[], gains:[NSTextField]=[], qs:[NSTextField]=[]
     var btFields:[NSTextField]=[]
     let apply=NSButton(title:L("套用到 DAC", "Apply to DAC"),target:nil,action:nil)
@@ -130,6 +130,9 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
         preset.addItem(withTitle:L("載入 DAC EQ 預設…", "Load DAC EQ preset…"))
         for n in 1...20 { preset.addItem(withTitle:L("\(n). 讀取中…", "\(n). Loading…"));preset.lastItem?.tag=n }
         preset.target=self;preset.action=#selector(presetChanged);header.addArrangedSubview(preset)
+        template.addItem(withTitle:L("套用範本…", "Template…"))
+        for (i,t) in EQTemplate.all.enumerated() { template.addItem(withTitle:t.name);template.lastItem?.tag=i+1;template.lastItem?.toolTip=t.note }
+        template.target=self;template.action=#selector(templateChanged);header.addArrangedSubview(template)
         view.addArrangedSubview(header)
         let curveHost=Theme.surface(curve,radius:20,padding:0)
         view.addArrangedSubview(curveHost);curveHost.widthAnchor.constraint(equalTo:view.widthAnchor).isActive=true;curveHost.widthAnchor.constraint(greaterThanOrEqualToConstant:600).isActive=true;curve.heightAnchor.constraint(equalToConstant:230).isActive=true
@@ -226,6 +229,7 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
         curve.reference=compare.state == .on ? baseline : nil
         reload.isEnabled=bridge.connected
         preset.isEnabled=bridge.connected && !dirty && !pendingApply
+        template.isEnabled=editable && draft != nil
         for n in 1...20 {
             let name=bridge.presetNames[n] ?? L("讀取中…", "Loading…")
             preset.item(at:n)?.title="\(n). \(name.isEmpty ? L("未命名", "Unnamed") : name)\(bridge.emptyPresets.contains(n) ? L("（空白）", " (empty)") : "")"
@@ -264,6 +268,13 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
             guard bridge.eqState==baseline else { throw BridgeError.message(L("硬體 EQ 已變動，請先重新讀取", "Device EQ changed. Reload first.")) }
             let state=try capture();expected=try state.parameters(output:bridge.channel).map(RMEProtocol.normalized);applyFailure=nil;pendingApply=true;try bridge.applyEQ(state);refresh()
         } catch { pendingApply=false;expected=[];applyFailure=String(describing:error);refresh();report(error) }
+    }
+    /// Loads a template into the draft only; nothing reaches the DAC until Apply.
+    @objc func templateChanged() {
+        let n=template.selectedTag();template.selectItem(at:0)
+        guard n>0, let current=draft else { return }
+        let t=EQTemplate.all[n-1]
+        draft=t.applied(to:current);dirty=true;applyFailure=nil;validationMessage=nil;paintFields();changed()
     }
     @objc func presetChanged() {
         let n=preset.selectedTag();preset.selectItem(at:0)

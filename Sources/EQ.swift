@@ -101,3 +101,43 @@ extension Bridge {
     }
     func applyEQ(_ state:EQState)throws { try send(state.parameters(output:channel)) }
 }
+/// Starting-point curves derived from published listening research and common mixing practice, not from RME.
+/// Each sets the five parametric bands only; Bass/Treble and the Loudness function are left as they are.
+/// Boosts are kept small (≤ +6 dB) and most curves cut more than they boost to preserve headroom.
+struct EQTemplate {
+    let name:String, note:String
+    let bands:[EQBand]
+    private static func p(_ f:Double,_ g:Double,_ q:Double)->EQBand { EQBand(kind:.peak,frequency:f,gain:g,q:q) }
+    private static func ls(_ f:Double,_ g:Double,_ q:Double = 0.7)->EQBand { EQBand(kind:.lowShelf,frequency:f,gain:g,q:q) }
+    private static func hs(_ f:Double,_ g:Double,_ q:Double = 0.7)->EQBand { EQBand(kind:.highShelf,frequency:f,gain:g,q:q) }
+    static var all:[EQTemplate] { [
+        EQTemplate(name:L("平直（RME 預設）", "Flat (RME defaults)"),note:L("RME 出廠頻點，全部 0 dB", "RME factory frequencies, all 0 dB"),
+                   bands:[p(100,0,1),p(500,0,1),p(1000,0,1),p(5000,0,1),p(10000,0,1)]),
+        EQTemplate(name:L("Harman 風格低頻", "Harman-style bass"),note:L("Harman 研究偏好的約 +4.5 dB／105 Hz 低頻架", "≈ +4.5 dB shelf at 105 Hz preferred in Harman research"),
+                   bands:[ls(105,4.5),p(500,0,1),p(1000,0,1),p(5000,0,1),p(10000,0,1)]),
+        EQTemplate(name:L("小音量等響補償", "Low-volume loudness"),note:L("依 ISO 226 等響曲線補低頻與高頻；DAC 內建 Loudness 會隨音量自動調整，通常更好", "Bass and treble lift per ISO 226; the DAC's own Loudness adapts to volume and is usually better"),
+                   bands:[ls(100,6),p(500,0,1),p(1000,0,1),p(3500,1,1),hs(8000,3)]),
+        EQTemplate(name:L("女聲", "Female vocals"),note:L("減混濁、4 kHz 存在感、壓 7 kHz 齒音", "Less mud, 4 kHz presence, tamed 7 kHz sibilance"),
+                   bands:[ls(100,-1.5),p(250,-1.5,1),p(1200,1,1),p(4000,2.5,1.2),p(7000,-1.5,3)]),
+        EQTemplate(name:L("男聲", "Male vocals"),note:L("160 Hz 厚度、減 350 Hz 悶、3 kHz 清晰、壓 5 kHz 齒音", "160 Hz body, less 350 Hz boxiness, 3 kHz clarity, tamed 5 kHz sibilance"),
+                   bands:[p(160,1.5,1),p(350,-1.5,1.2),p(1500,1,1),p(3000,2.5,1.2),p(5000,-1,3)]),
+        EQTemplate(name:L("人聲前移", "Vocals forward"),note:L("退低頻、推 2–4 kHz 語音清晰帶", "Recessed bass, lifted 2–4 kHz intelligibility band"),
+                   bands:[ls(120,-2),p(300,-1,1),p(2000,1.5,0.8),p(3500,2,1),hs(10000,-1)]),
+        EQTemplate(name:L("語音／Podcast", "Speech / podcast"),note:L("切 80 Hz 以下、減混濁、加 3 kHz、壓齒音", "Cut below 80 Hz, less mud, 3 kHz lift, tamed sibilance"),
+                   bands:[EQBand(kind:.highPass,frequency:80,gain:0,q:0.7),p(250,-2,1),p(1000,0,1),p(3000,2,1),p(7000,-1.5,3)]),
+        EQTemplate(name:L("溫暖", "Warm"),note:L("低頻與低中頻略加、高頻略收", "A little more bass and low mids, softer treble"),
+                   bands:[ls(120,2.5),p(250,1,0.8),p(1000,0,1),p(3000,-1,1),hs(8000,-2)]),
+        EQTemplate(name:L("明亮清晰", "Bright and clear"),note:L("減低中頻、5 kHz 細節、10 kHz 空氣感", "Less low-mid, 5 kHz detail, 10 kHz air"),
+                   bands:[ls(100,-1),p(300,-1.5,1),p(1000,0,1),p(5000,1.5,1),hs(10000,2.5)]),
+        EQTemplate(name:L("低頻加強", "Bass boost"),note:L("80 Hz 低頻架 +5 dB，並減 250 Hz 避免混濁", "+5 dB shelf at 80 Hz with a 250 Hz cut against mud"),
+                   bands:[ls(80,5),p(250,-1,1),p(1000,0,1),p(5000,0,1),p(10000,0,1)]),
+        EQTemplate(name:L("V 型（流行／電子）", "V-shape (pop / electronic)"),note:L("低頻與高頻加、1 kHz 中頻略收", "Lifted lows and highs, slightly scooped 1 kHz"),
+                   bands:[ls(90,3.5),p(500,0,1),p(1000,-1.5,0.7),p(5000,0,1),hs(9000,2.5)]),
+        EQTemplate(name:L("減少刺耳", "Less harshness"),note:L("壓 3 kHz 與 6.5 kHz 齒音，高頻略收", "Tames 3 kHz and 6.5 kHz sibilance, softer top end"),
+                   bands:[p(100,0,1),p(500,0,1),p(3000,-1.5,1.5),p(6500,-3,2),hs(10000,-1.5)]),
+    ] }
+    /// Applies this curve to both channels; the EQ is switched on, everything else is kept.
+    func applied(to state:EQState)->EQState {
+        var s=state;s.left=bands;s.right=bands;s.enabled=true;return s
+    }
+}

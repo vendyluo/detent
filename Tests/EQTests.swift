@@ -30,6 +30,12 @@ import Foundation
         assert(RMEProtocol.requestPreset(2)==[0xF0,0,0x20,0x0D,0x71,3,0x0B,0xF7])
         let name:[UInt8]=[0xF0,0,0x20,0x0D,0x71,5,2]+Array("  HD650  ".utf8)+[0,0xF7]
         let parsed=RMEProtocol.presetName(name);assert(parsed?.0==2 && parsed?.1=="HD650")
+        for t in EQTemplate.all {
+            let applied=t.applied(to:state)
+            do { _ = try applied.parameters(output:6) } catch { assertionFailure("template \(t.name) is out of range: \(error)") }
+            assert(applied.enabled && applied.left==applied.right && applied.bass==state.bass && applied.treble==state.treble)
+        }
+        print("PASS: every EQ template is within DAC ranges and keeps Bass/Treble")
         print("PASS: official frequency vector, x10 quantization boundaries, full 5-band/stereo/B-T round trip, EQ validation, preset write protection, preset names, response model")
     }
 }
