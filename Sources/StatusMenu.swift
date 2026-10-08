@@ -5,14 +5,14 @@ import AppKit
 final class MenuPanel:NSView {
     let title=NSTextField(labelWithString:"ADI-2 DAC")
     let nativeLabel=NSTextField(labelWithString:"")
-    let native=NSSwitch()
+    let native=MenuToggle()
     let statusText=NSTextField(labelWithString:"")
     lazy var status=StatusPill(label:statusText)
     let reading=NSTextField(labelWithString:"—")
     let unit=NSTextField(labelWithString:"dB")
     let mute=NSButton()
     let slider=TrackingSlider(value:0,minValue:-114.5,maxValue:0,target:nil,action:nil)
-    let outputs=NSSegmentedControl()
+    let outputs=MenuSegments(labels:["Line Out","Phones","IEM"])
     let hint=NSTextField(labelWithString:"")
     static let width:CGFloat=300
 
@@ -20,14 +20,13 @@ final class MenuPanel:NSView {
         super.init(frame:NSRect(x:0,y:0,width:Self.width,height:10))
         title.font = .systemFont(ofSize:13,weight:.semibold)
         nativeLabel.font = .systemFont(ofSize:11);nativeLabel.textColor = .secondaryLabelColor
-        native.controlSize = .mini
         reading.font=Theme.rounded(30,.semibold);reading.textColor = .labelColor
         unit.font=Theme.rounded(13,.medium);unit.textColor = .secondaryLabelColor
         mute.bezelStyle = .circular;mute.isBordered=true;mute.setButtonType(.momentaryPushIn);mute.imagePosition = .imageOnly
         mute.widthAnchor.constraint(equalToConstant:30).isActive=true;mute.heightAnchor.constraint(equalToConstant:30).isActive=true
+        slider.cell=MenuSliderCell();slider.minValue = -114.5;slider.maxValue=0
         slider.isContinuous=true;slider.controlSize = .regular
-        outputs.segmentCount=3;outputs.trackingMode = .selectOne;outputs.controlSize = .regular
-        for (i,name) in ["Line Out","Phones","IEM"].enumerated() { outputs.setLabel(name,forSegment:i);outputs.setWidth((Self.width-32-6)/3,forSegment:i) }
+        // Menu windows are never key, so stock controls draw their accent in the inactive gray.
         hint.font = .systemFont(ofSize:11);hint.textColor = .secondaryLabelColor;hint.lineBreakMode = .byTruncatingTail
 
         func line(_ views:[NSView],spacing:CGFloat=8)->NSStackView {
@@ -55,6 +54,73 @@ final class MenuPanel:NSView {
     required init?(coder:NSCoder) { nil }
     // Controls inside a menu must not let a drag move anything but themselves.
     override var mouseDownCanMoveWindow: Bool { false }
+}
+
+/// A switch that keeps its accent color inside a menu, where NSSwitch always draws as inactive.
+final class MenuToggle:NSControl {
+    var state:NSControl.StateValue = .off { didSet { needsDisplay=true;setAccessibilityValue(state == .on) } }
+    override var isEnabled:Bool { didSet { needsDisplay=true } }
+    override var intrinsicContentSize:NSSize { NSSize(width:32,height:18) }
+    override var mouseDownCanMoveWindow:Bool { false }
+    override func draw(_ dirtyRect:NSRect) {
+        let track=NSRect(x:0,y:(bounds.height-18)/2,width:32,height:18)
+        let on=state == .on
+        (on ? NSColor.controlAccentColor : NSColor.tertiaryLabelColor).withAlphaComponent(isEnabled ? 1 : 0.4).setFill()
+        NSBezierPath(roundedRect:track,xRadius:9,yRadius:9).fill()
+        let knob=NSRect(x:on ? track.maxX-16 : track.minX+2,y:track.minY+2,width:14,height:14)
+        NSColor.white.withAlphaComponent(isEnabled ? 1 : 0.7).setFill();NSBezierPath(ovalIn:knob).fill()
+    }
+    override func mouseDown(with event:NSEvent) { _ = toggle() }
+    private func toggle()->Bool {
+        guard isEnabled else { return false }
+        state = state == .on ? .off : .on;sendAction(action,to:target);return true
+    }
+    override func isAccessibilityElement()->Bool { true }
+    override func accessibilityRole()->NSAccessibility.Role? { .checkBox }
+    override func accessibilityPerformPress()->Bool { toggle() }
+}
+
+/// Fills the track up to the knob with the accent color, which NSSlider drops in a menu.
+final class MenuSliderCell:NSSliderCell {
+    override func drawBar(inside rect:NSRect,flipped:Bool) {
+        let track=NSRect(x:rect.minX,y:rect.midY-2,width:rect.width,height:4)
+        NSColor.quaternaryLabelColor.setFill();NSBezierPath(roundedRect:track,xRadius:2,yRadius:2).fill()
+        let knob=knobRect(flipped:flipped)
+        var filled=track;filled.size.width=max(0,knob.midX-track.minX)
+        NSColor.controlAccentColor.withAlphaComponent(isEnabled ? 1 : 0.4).setFill();NSBezierPath(roundedRect:filled,xRadius:2,yRadius:2).fill()
+    }
+}
+
+/// Segmented picker drawn by hand so the selection keeps its accent color inside a menu.
+final class MenuSegments:NSControl {
+    let labels:[String]
+    var selectedSegment=0 { didSet { needsDisplay=true;setAccessibilityValue(labels.indices.contains(selectedSegment) ? labels[selectedSegment] : nil) } }
+    override var isEnabled:Bool { didSet { needsDisplay=true } }
+    init(labels:[String]) { self.labels=labels;super.init(frame:.zero) }
+    required init?(coder:NSCoder) { nil }
+    override var intrinsicContentSize:NSSize { NSSize(width:NSView.noIntrinsicMetric,height:28) }
+    override var mouseDownCanMoveWindow:Bool { false }
+    private func rect(_ i:Int)->NSRect {
+        let inner=bounds.insetBy(dx:2,dy:2),w=inner.width/CGFloat(labels.count)
+        return NSRect(x:inner.minX+w*CGFloat(i),y:inner.minY,width:w,height:inner.height)
+    }
+    override func draw(_ dirtyRect:NSRect) {
+        NSColor.quaternaryLabelColor.setFill();NSBezierPath(roundedRect:bounds,xRadius:8,yRadius:8).fill()
+        for (i,label) in labels.enumerated() {
+            let r=rect(i),selected=i == selectedSegment
+            if selected { NSColor.controlAccentColor.withAlphaComponent(isEnabled ? 1 : 0.4).setFill();NSBezierPath(roundedRect:r,xRadius:6,yRadius:6).fill() }
+            let color:NSColor=selected ? .white : (isEnabled ? .labelColor : .tertiaryLabelColor)
+            let text=NSAttributedString(string:label,attributes:[.font:NSFont.systemFont(ofSize:13,weight:selected ? .semibold : .regular),.foregroundColor:color])
+            let size=text.size();text.draw(at:NSPoint(x:r.midX-size.width/2,y:r.midY-size.height/2))
+        }
+    }
+    override func mouseDown(with event:NSEvent) {
+        guard isEnabled else { return }
+        let p=convert(event.locationInWindow,from:nil)
+        if let i=labels.indices.first(where:{ rect($0).contains(p) }), i != selectedSegment { selectedSegment=i;sendAction(action,to:target) }
+    }
+    override func isAccessibilityElement()->Bool { true }
+    override func accessibilityRole()->NSAccessibility.Role? { .radioGroup }
 }
 
 extension AppDelegate {
