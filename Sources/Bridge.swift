@@ -405,7 +405,9 @@ extension Bridge {
     fileprivate func checkPresetWrite() {
         guard case .verifying(let n)? = presetWrite, reportingPreset == n || presetData[n] != nil, let data=presetData[n] else { return }
         guard presetWriteExpected.allSatisfy({ data[$0.key] == $0.value }) else {
-            if data.count >= presetWriteExpected.count {
+            // The read-back arrives in several messages (right channel before Bass/Treble), so only judge it
+            // once every expected parameter is in; until then keep waiting for the timeout.
+            if presetWriteExpected.keys.allSatisfy({ data[$0] != nil }) {
                 presetWrite = .failed(n,L("讀回的內容與送出的不同", "The saved preset does not match what was sent"))
                 bridgeLog.error("preset \(n, privacy: .public) read-back mismatch")
             }

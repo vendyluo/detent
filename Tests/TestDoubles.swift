@@ -53,7 +53,11 @@ final class FakeMIDI:MIDITransport {
         } else if b[5]==3, (0x0A...0x1D).contains(b[6]) {
             let n=Int(b[6])-9
             if let data=presets[n] {
-                emit([RMEParameter(channel:13,index:1,value:(n-1)<<4)]+data.map { RMEParameter(channel:$0.key/32,index:$0.key%32,value:$0.value) })
+                // Like the device: bands of both channels first (right as zeros when not dual), Bass/Treble after.
+                let bands=data.filter { $0.key%32 < 20 }.map { RMEParameter(channel:$0.key/32,index:$0.key%32,value:$0.value) }
+                let zeros=(3...19).filter { data[14*32+$0] == nil }.map { RMEParameter(channel:14,index:$0,value:0) }
+                emit([RMEParameter(channel:13,index:1,value:(n-1)<<4)]+bands+zeros)
+                emit(data.filter { $0.key%32 >= 20 }.map { RMEParameter(channel:$0.key/32,index:$0.key%32,value:$0.value) })
             } else { emit([RMEParameter(channel:13,index:1,value:(n-1)<<4|15)]) }
             let name=presetNames[n] ?? "EQ Preset \(n)"
             onMessage?([0xF0,0,0x20,0x0D,0x71,5,UInt8(n)]+Array((String(repeating:" ",count:14-name.count)+name).utf8)+[0,0,0xF7])
