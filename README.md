@@ -28,14 +28,14 @@ A Swift/AppKit app controls the DAC's hardware volume through USB MIDI. A Core A
 
 ## Status and requirements
 
-Source release: **App 0.6.0 / driver 0.4.0**. Local development build, not a notarized 1.0 release.
+Source release: **App 0.6.0 / driver 0.4.0**. There is no signed and notarized Detent download yet; build from source. Not a 1.0 release.
 
 - Apple Silicon Mac; the build script targets macOS 13 or newer. Local hardware testing has been on macOS 27; other OS versions are not yet validated.
 - Xcode Command Line Tools (`xcode-select --install`).
 - Exactly one RME ADI-2 DAC connected over USB, with firmware supporting the official MIDI remote protocol. ADI-2 Pro and 2/4 Pro are not supported.
 - Administrator authentication to install the HAL driver.
 
-Seven test suites pass, including simulated failures and recovery. The latest 0.6.0 / 0.4.0 changes have passed compilation and automated tests; final installation/hardware verification is pending. Extended playback, physical reconnect and sleep/wake coverage across machines remains incomplete.
+Seven test suites pass, including simulated failures and recovery. 0.6.0 / 0.4.0 has been installed and used on macOS 27 with an ADI-2 DAC FS, covering volume, output switching, EQ and DAC preset load/save. Extended playback, physical reconnect and sleep/wake coverage across machines remains incomplete.
 
 ## Build and test
 
@@ -46,7 +46,7 @@ cd detent
 ./Scripts/test.sh
 ```
 
-Icons are generated locally by `Scripts/render-icons.swift`, which also writes the vector logo `Assets/Logo.svg` from the same geometry. Local builds use ad-hoc signing by default. The DMG prepared on 2026-09-26 passed Developer ID signing, Apple notarization, and Gatekeeper validation. `Scripts/release.sh` supports signed and notarized releases; see the signing section in README.zh-TW.md. The DMG currently contains a folder with command-based installation tools; a graphical PKG installer is still pending.
+Icons are generated locally by `Scripts/render-icons.swift`, which also writes the vector logo `Assets/Logo.svg` from the same geometry. Local builds use ad-hoc signing by default. A DMG of the earlier ADI2 Native build passed Developer ID signing, Apple notarization, and Gatekeeper validation on 2026-09-26; no Detent DMG has been notarized yet. `Scripts/release.sh` supports signed and notarized releases; see the signing section in README.zh-TW.md. The DMG currently contains a folder with command-based installation tools; a graphical PKG installer is still pending.
 
 ## Install and use
 

@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 : "${ADI2_SIGN_IDENTITY:?Set ADI2_SIGN_IDENTITY to your Developer ID Application identity}"
 [[ "$ADI2_SIGN_IDENTITY" == 'Developer ID Application:'* ]] || { echo 'A Developer ID Application identity is required.' >&2; exit 1; }
 ./Scripts/build.sh
-stage="$(mktemp -d "${TMPDIR:-/tmp}/adi2-release.XXXXXX")"
+stage="$(mktemp -d "${TMPDIR:-/tmp}/detent-release.XXXXXX")"
 trap 'rm -rf "$stage"' EXIT
 mkdir -p "$stage/Detent/build" "$stage/Detent/Scripts" build/release
 for bundle in 'Detent.app' Detent.driver; do
@@ -13,7 +13,7 @@ for bundle in 'Detent.app' Detent.driver; do
 done
 cp Install.command Uninstall.command README.zh-TW.md LICENSE THIRD_PARTY_NOTICES.md "$stage/Detent/"
 cp Scripts/install-driver.sh Scripts/uninstall-driver.sh "$stage/Detent/Scripts/"
-dmg="$PWD/build/release/ADI2-Native.dmg"
+dmg="$PWD/build/release/Detent.dmg"
 hdiutil create -ov -format UDZO -volname 'Detent' -srcfolder "$stage" "$dmg"
 codesign --force --timestamp --sign "$ADI2_SIGN_IDENTITY" "$dmg"
 codesign --verify --strict "$dmg"
