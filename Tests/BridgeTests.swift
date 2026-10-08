@@ -79,6 +79,20 @@ import CoreAudio
         audio.mute=false;b2.tick();clock.time += 0.5;b2.tick()
         assert(!audio.gate && !audio.configurations.contains("bridgeReady=1"))
         midi.acknowledge=true;midi.snapshot();clock.time += 0.5;b2.tick();assert(audio.gate)
+        // Picking the proxy in Control Center while native control is off enables it, or falls back to the DAC.
+        do {
+            let suite="local.ADI2Native.PickTests.\(UUID())",pickDefaults=UserDefaults(suiteName:suite)!
+            defer { pickDefaults.removePersistentDomain(forName:suite) }
+            let m=FakeMIDI(),a=FakeAudio(),t=Clock()
+            let pb=try Bridge(midi:m,audio:a,settings:Settings(pickDefaults),now:{t.time},startTimer:false)
+            assert(!pb.enabled && !pb.wanted)
+            a.normal=2;a.system=2;t.time += 0.1;pb.tick()
+            assert(pb.enabled && pb.wanted && a.gate && a.normal==2)
+            pb.disable();assert(a.normal==a.deviceID)
+            m.hardware(3,13,1);a.normal=2;a.system=2;t.time += 2.1;pb.tick()
+            assert(!pb.enabled && !pb.wanted && a.normal==a.deviceID && a.system==a.deviceID && pb.status.contains("實體 DAC"))
+        }
+        print("PASS: selecting the proxy output with native control off enables it, or routes to the physical DAC when it cannot")
         // A locked output hands audio to the physical DAC instead of leaving a silent proxy, then resumes.
         do {
             let suite="local.ADI2Native.LockTests.\(UUID())",lockDefaults=UserDefaults(suiteName:suite)!

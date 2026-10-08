@@ -162,6 +162,20 @@ final class Bridge {
         }
         enabled=false; pending.removeAll(); holdGate=false; lastLease = -1e9
     }
+    private func adoptProxySelection() {
+        lastActivationAttempt=now()
+        bridgeLog.notice("proxy selected as output while native control is off; enabling")
+        do { try enable() } catch {
+            // Never leave a silent default: hand playback to the physical DAC with its level unchanged.
+            let devices=audio.devices()
+            if let p=devices.first(where:{$0.uid == Audio.proxyUID}),
+               let dac=devices.first(where:{$0.uid != Audio.proxyUID && ($0.uid == settings.deviceUID || $0.name.contains("ADI-2 DAC"))}) {
+                for system in [false,true] where (try? audio.defaultDevice(system)) == p.id { try? audio.setDefault(dac.id,system) }
+            }
+            status=L("無法啟用原生控制，已改由實體 DAC 播放：\(error)", "Couldn't enable native control; playing through the physical DAC: \(error)")
+            onUpdate?()
+        }
+    }
     /// Keeps audio playing when the DAC locks the controlled volume: the proxy would otherwise stay
     /// the default output with its gate closed. Hardware gain is unchanged, so there is no level jump.
     private func pauseForLock() {
@@ -279,6 +293,9 @@ final class Bridge {
             do { try midi.send(RMEProtocol.requestPreset(next)) } catch { status=String(describing:error) }
         }
         if !enabled {
+            // The proxy only plays while this app renews its lease. If the user picks it in Control
+            // Center or Sound settings while native control is off, treat that as asking for it.
+            if !wanted && now()-lastActivationAttempt >= 2 && currentRoute() == Audio.proxyUID { adoptProxySelection(); return }
             if wanted && synchronized {
                 if let resume=resumeRouteUID, let current=currentRoute(), current != resume && current != Audio.proxyUID && current != settings.deviceUID {
                     setWanted(false); stop(restore:true); status=L("偵測到其他音訊輸出，已取消自動恢復", "Another audio output was selected. Automatic restoration cancelled."); onUpdate?(); return
