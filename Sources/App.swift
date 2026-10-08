@@ -122,7 +122,8 @@ final class AppDelegate:NSObject,NSApplicationDelegate,NSMenuDelegate,NSWindowDe
         slider.minValue=range.minimum;slider.maxValue=range.maximum;if !slider.tracking { slider.doubleValue=shown };slider.isEnabled=bridge.synchronized
         dial.minValue=range.minimum;dial.maxValue=range.maximum;if !dial.tracking { dial.value=shown }
         dial.hasValue=bridge.connected;dial.muted=bridge.hardwareMuted;dial.mutedText=L("靜音", "Muted");dial.isEnabled=bridge.synchronized
-        targetTitle.stringValue=bridge.channelName;targetDetail.stringValue=[3:"RCA／XLR",6:"6.3 mm",9:"3.5 mm"][bridge.channel] ?? ""
+        targetTitle.stringValue=bridge.channelName;targetDetail.stringValue=([3:"RCA／XLR",6:"6.3 mm",9:"3.5 mm"][bridge.channel] ?? "")+(jackNote(bridge.channel).map { " · \($0)" } ?? "")
+        for (i,(c,jack)) in [(3,"RCA／XLR"),(6,"6.3 mm"),(9,"3.5 mm")].enumerated() { outputs.setToolTip(["\([3:"Line Out",6:"Phones",9:"IEM"][c]!) · \(jack)",jackNote(c)].compactMap { $0 }.joined(separator:"\n"),forSegment:i) }
         rangeCaption.stringValue=L("拖曳、捲動或方向鍵調整 · 按住 ⌥ 以 0.1 dB 微調", "Drag, scroll or use arrow keys · Hold ⌥ for 0.1 dB steps")
         sideKnob.image=StatusKnob.image(position:bridge.connected ? (shown-range.minimum)/(range.maximum-range.minimum) : 0,amplitude:0)
         sideKnob.contentTintColor=bridge.connected ? (bridge.hardwareMuted ? .systemRed : .controlAccentColor) : .tertiaryLabelColor
@@ -148,6 +149,12 @@ final class AppDelegate:NSObject,NSApplicationDelegate,NSMenuDelegate,NSWindowDe
         launch.state=login == .enabled ? .on : .off
         loginStatus.stringValue=login == .requiresApproval ? L("登入啟動等待系統核准：請開啟「登入項目設定」。", "Login launch needs approval. Open Login Items to allow it.") : L("登入啟動由 macOS 登入項目管理；移動 App 後需重新設定。", "Managed by macOS Login Items. Set it up again if you move this app.")
         editor.refresh()
+    }
+    /// The DAC only reports whether some front headphone jack is in use, not which one.
+    func jackNote(_ channel:Int)->String? {
+        guard bridge.connected, let plugged=bridge.headphonesPlugged else { return nil }
+        if channel == 3 { return plugged ? L("前面板已插耳機", "Headphones plugged in front") : nil }
+        return plugged ? nil : L("前面板未插耳機", "No headphones plugged in front")
     }
     func report(_ error:Error) { show();let a=NSAlert(error:error);a.beginSheetModal(for:window) }
     func attempt(_ action:()throws->Void) { do { try action();refresh(force:true) } catch { report(error) } }
