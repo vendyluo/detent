@@ -26,7 +26,7 @@ import Foundation
         invalid=state;invalid.left[4].q=9.9
         do { _ = try invalid.parameters(output:3);assertionFailure("accepted invalid Q") } catch {}
         assert(!RMEProtocol.valid(RMEParameter(channel:4,index:28,value:22))) // Clear is not exposed.
-        assert(!RMEProtocol.valid(RMEParameter(channel:13,index:2,value:1)))
+        assert(!RMEProtocol.valid(RMEParameter(channel:13,index:2,value:15))) // The "empty" pattern is never written.
         assert(RMEProtocol.requestPreset(2)==[0xF0,0,0x20,0x0D,0x71,3,0x0B,0xF7])
         let name:[UInt8]=[0xF0,0,0x20,0x0D,0x71,5,2]+Array("  HD650  ".utf8)+[0,0xF7]
         let parsed=RMEProtocol.presetName(name);assert(parsed?.0==2 && parsed?.1=="HD650")
@@ -41,8 +41,9 @@ import Foundation
         var dualState=state;dualState.dual=true
         let batches=try! dualState.presetParameters(number:5)
         assert(batches.count == 3 && batches[0].allSatisfy { $0.channel == 13 } && batches[1].allSatisfy { $0.channel == 14 })
-        assert(batches.last! == [RMEParameter(channel:13,index:1,value:4<<4|1)] && RMEProtocol.presetFlag(4<<4|1)! == (5,true))
-        assert(RMEProtocol.presetFlag(4<<4|15) == nil && !batches.joined().contains { [2,27,28].contains($0.index) })
+        assert(batches.last! == [RMEParameter(channel:13,index:2,value:4<<4|1)] && RMEProtocol.presetFlag(4<<4|1)! == (5,true))
+        assert(!RMEProtocol.valid(RMEParameter(channel:13,index:1,value:0)))
+        assert(RMEProtocol.presetFlag(4<<4|15) == nil && !batches.dropLast().joined().contains { [1,2,20,27,28].contains($0.index) })
         for b in batches { _ = try! RMEProtocol.message(b) }
         assert(RMEProtocol.presetNameMessage(2,"ProPhile 8")! == [0xF0,0,0x20,0x0D,0x71,6,2,0x20,0x20,0x20,0x20,0x50,0x72,0x6F,0x50,0x68,0x69,0x6C,0x65,0x20,0x38,0,0,0xF7])
         assert(RMEProtocol.presetNameMessage(1,"") == nil && RMEProtocol.presetNameMessage(1,"Thirteen chars") == nil && RMEProtocol.presetNameMessage(21,"x") == nil)

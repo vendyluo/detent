@@ -61,15 +61,16 @@ struct EQState:Equatable {
         return result
     }
     /// The same EQ written into the DAC's preset buffers (address 13 left + Bass/Treble, 14 right).
-    /// Ends with the flag word, which makes the device store everything it received into `number`.
+    /// Ends with the flag word, which makes the device store everything buffered (data and name) into `number`.
     func presetParameters(number:Int)throws->[[RMEParameter]] {
         // Ranges are identical to a live output, so validate as Line Out and move addresses 4/5 to 13/14.
-        let output=try parameters(output:3).filter { ($0.channel == 4 || $0.channel == 5) && $0.index != 2 }
+        // EQ Enable (2) and B/T Enable (20) are live settings; the device does not store them in a preset.
+        let output=try parameters(output:3).filter { ($0.channel == 4 || $0.channel == 5) && ![2,20].contains($0.index) }
         let left=output.filter { $0.channel == 4 }.map { RMEParameter(channel:13,index:$0.index,value:$0.value) }
         let right=output.filter { $0.channel == 5 }.map { RMEParameter(channel:14,index:$0.index,value:$0.value) }
         var batches=[left]
         if dual { batches.append(right) }
-        batches.append([RMEParameter(channel:13,index:1,value:RMEProtocol.presetFlag(number:number,dual:dual))])
+        batches.append([RMEParameter(channel:13,index:RMEProtocol.presetFlagWriteIndex,value:RMEProtocol.presetFlag(number:number,dual:dual))])
         return batches
     }
     func response(frequency:Double,rightChannel:Bool=false,sampleRate:Double=44100)->Double {

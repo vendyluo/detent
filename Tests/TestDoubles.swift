@@ -7,8 +7,9 @@ final class FakeMIDI:MIDITransport {
     var present=true, linked=false, acknowledge=true
     var state:[Int:[Int:Int]]=[3:[12:-100,13:0,15:0],6:[12:-300,13:0,15:0],9:[12:-165,13:0,15:0]]
     var writes:[[UInt8]]=[]
-    /// DAC preset memory: address 13/14 writes fill a buffer that the flag word commits to a slot.
-    var presetBuffer:[Int:Int]=[:], presets:[Int:[Int:Int]]=[:], presetNames:[Int:String]=[:]
+    /// DAC preset memory, as measured on hardware: address 13/14 writes and the name fill a buffer that the
+    /// flag word (written at index 2, reported at index 1) commits to a slot.
+    var presetBuffer:[Int:Int]=[:], presets:[Int:[Int:Int]]=[:], presetNames:[Int:String]=[:], bufferedName:String?
     var corruptPresets=false
     func topologyIsCurrent()->Bool { present && linked }
     func connect()throws { guard present else { throw BridgeError.message("offline") }; linked=true; snapshot() }
@@ -36,7 +37,11 @@ final class FakeMIDI:MIDITransport {
             let ps=RMEProtocol.parameters(incoming)
             if ps.allSatisfy({ $0.channel >= 13 }) {
                 for p in ps {
-                    if p.channel == 13 && p.index == 1 { presets[(p.value>>4)+1]=presetBuffer;presetBuffer=[:] }
+                    if p.channel == 13 && p.index == 1 { continue } // Ignored, like the real device.
+                    if p.channel == 13 && p.index == 2 {
+                        let n=(p.value>>4)+1;presets[n]=presetBuffer;presetBuffer=[:]
+                        if let name=bufferedName { presetNames[n]=name;bufferedName=nil }
+                    }
                     else { presetBuffer[p.channel*32+p.index]=corruptPresets && p.index == 4 ? p.value+1 : p.value }
                 }
                 return
@@ -44,7 +49,7 @@ final class FakeMIDI:MIDITransport {
             for p in ps { state[p.channel,default:[:]][p.index]=p.value }
             if acknowledge { onMessage?(incoming) }
         } else if b[5]==6 {
-            presetNames[Int(b[6])]=String(bytes:b[7..<21],encoding:.ascii)!.trimmingCharacters(in:.whitespaces)
+            bufferedName=String(bytes:b[7..<21],encoding:.ascii)!.trimmingCharacters(in:.whitespaces)
         } else if b[5]==3, (0x0A...0x1D).contains(b[6]) {
             let n=Int(b[6])-9
             if let data=presets[n] {

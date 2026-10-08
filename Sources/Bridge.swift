@@ -261,7 +261,7 @@ final class Bridge {
         for p in RMEProtocol.parameters(msg) {
             // EQ-Preset flags. RME's table lists them at index 2, but the ADI-2 DAC sends them at index 1
             // (verified on hardware, firmware 2023): bits 8..4 are the preset number, all four low bits set means empty.
-            if p.channel == 13 && p.index == 1 {
+            if p.channel == 13 && p.index == RMEProtocol.presetFlagReadIndex {
                 let number=(p.value >> 4)+1
                 if p.value & 15 == 15 { emptyPresets.insert(number);reportingPreset=nil;presetData[number]=nil }
                 else { emptyPresets.remove(number);reportingPreset=number;presetData[number]=[:] }
@@ -393,8 +393,10 @@ extension Bridge {
         presetWriteExpected=[:]
         for p in batches.dropLast().joined() { let n=RMEProtocol.normalized(p);presetWriteExpected[n.channel*32+n.index]=n.value }
         presetWriteName=name;presetWriteDataMatched=false
-        for batch in batches { try midi.send(RMEProtocol.message(batch)) }
+        // Data, then the name, then the flag word: the flag commits whatever the device has buffered.
+        for batch in batches.dropLast() { try midi.send(RMEProtocol.message(batch)) }
         try midi.send(nameMessage)
+        try midi.send(RMEProtocol.message(batches.last!))
         presetWrite = .verifying(number);presetWriteStarted=now()
         bridgeLog.notice("saving EQ preset \(number, privacy: .public)")
         // Give the device a moment to store, then ask for the preset and its name.

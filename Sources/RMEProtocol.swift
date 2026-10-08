@@ -23,8 +23,8 @@ enum RMEProtocol {
         let left=[4,7,10,13].contains(p.channel), preset=p.channel >= 13
         if preset {
             // Preset buffers carry band and Bass/Treble data plus the flag word that commits them.
-            if p.index == 1 { return p.channel == 13 && presetFlag(p.value) != nil }
-            if [2,27,28].contains(p.index) { return false }
+            if p.index == 2 { return p.channel == 13 && presetFlag(p.value) != nil }
+            if [1,27,28].contains(p.index) { return false }
         } else if p.index == 1 { return false }
         switch p.index {
         case 2,20,27: return left && (0...1).contains(p.value)
@@ -58,8 +58,10 @@ enum RMEProtocol {
         return b+[0xF7]
     }
     static func set(channel:Int,index:Int,value:Int)->[UInt8] { try! message([RMEParameter(channel:channel,index:index,value:value)]) }
-    /// EQ-Preset flag word on address 13, index 1 (RME's table says 2; its own example and the hardware use 1).
-    /// Bits 8..4 hold the preset number counted from zero, bit 0 the Dual EQ flag. Never the "empty" pattern.
+    /// EQ-Preset flag word on address 13. Bits 8..4 hold the preset number counted from zero, bit 0 the
+    /// Dual EQ flag. Verified on an ADI-2 DAC: the device reports it at index 1 but only accepts it at
+    /// index 2 (RME's table lists 2; its read example shows 1). Writing it commits the buffered data and name.
+    static let presetFlagReadIndex=1, presetFlagWriteIndex=2
     static func presetFlag(number:Int,dual:Bool)->Int { (number-1)<<4 | (dual ? 1 : 0) }
     static func presetFlag(_ value:Int)->(number:Int,dual:Bool)? {
         let number=(value>>4)+1
@@ -67,6 +69,7 @@ enum RMEProtocol {
         return (number,value & 1 == 1)
     }
     /// Preset names travel as 14 right-aligned ASCII characters plus two zero bytes, as the device sends them.
+    /// The device buffers the name like the EQ data, so it must be sent before the flag word.
     static let presetNameLength=12
     static func presetNameMessage(_ number:Int,_ name:String)->[UInt8]? {
         guard (1...20).contains(number), (1...presetNameLength).contains(name.count),
