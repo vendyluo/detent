@@ -302,17 +302,20 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
         let state:EQState
         do { state=try capture() } catch { report(error);return }
         let slots=NSPopUpButton(),name=NSTextField(string:lastTemplate.map { EQTemplate.presetNames[$0] } ?? "My EQ")
+        slots.autoenablesItems=false
         for n in 1...20 {
-            let empty=bridge.emptyPresets.contains(n),label=bridge.presetNames[n] ?? ""
-            slots.addItem(withTitle:"\(n). \(empty ? L("（空白）", "(empty)") : label)");slots.lastItem?.tag=n
+            let empty=bridge.emptyPresets.contains(n),label=bridge.presetNames[n] ?? "",users=bridge.outputsUsingPreset(n)
+            let note=users.isEmpty ? "" : L("（\(users.joined(separator:"、")) 使用中）", " (in use: \(users.joined(separator:", ")))")
+            slots.addItem(withTitle:"\(n). \(empty ? L("（空白）", "(empty)") : label)\(note)");slots.lastItem?.tag=n;slots.lastItem?.isEnabled=users.isEmpty
         }
-        if let free=(1...20).first(where:{ bridge.emptyPresets.contains($0) }) { slots.selectItem(withTag:free) }
+        let usable=(1...20).filter { bridge.outputsUsingPreset($0).isEmpty }
+        if let free=usable.first(where:{ bridge.emptyPresets.contains($0) }) ?? usable.first { slots.selectItem(withTag:free) }
         name.placeholderString=L("最多 \(RMEProtocol.presetNameLength) 個英數字元", "Up to \(RMEProtocol.presetNameLength) ASCII characters")
         let form=NSGridView(views:[[NSTextField(labelWithString:L("存入", "Slot")),slots],[NSTextField(labelWithString:L("名稱", "Name")),name]])
         form.rowSpacing=8;form.columnSpacing=10;name.widthAnchor.constraint(equalToConstant:220).isActive=true
         form.frame=NSRect(x:0,y:0,width:290,height:60)
         let alert=NSAlert();alert.messageText=L("存成 DAC 預設", "Save as DAC preset")
-        alert.informativeText=L("把目前編輯中的 EQ（含未套用的草稿）存進 DAC 的預設，之後可以直接在 DAC 上切換。目前的聲音不會改變。", "Stores the EQ being edited, including unapplied changes, in a DAC preset you can recall on the device. What you hear now does not change.")
+        alert.informativeText=L("把目前編輯中的 EQ（含未套用的草稿）存進 DAC 的預設，之後可以直接在 DAC 上切換。目前的聲音不會改變。正在使用中的預設不能覆蓋，因為 DAC 會連帶改掉該輸出的 EQ。", "Stores the EQ being edited, including unapplied changes, in a DAC preset you can recall on the device. What you hear now does not change. Presets in use cannot be replaced, because the DAC would also change that output's EQ.")
         alert.accessoryView=form;alert.addButton(withTitle:L("儲存", "Save"));alert.addButton(withTitle:L("取消", "Cancel"))
         alert.window.initialFirstResponder=name
         alert.beginSheetModal(for:window) { [weak self] response in

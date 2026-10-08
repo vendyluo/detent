@@ -387,6 +387,10 @@ extension Bridge {
         guard let nameMessage=RMEProtocol.presetNameMessage(number,name) else {
             throw BridgeError.message(L("名稱需為 1～\(RMEProtocol.presetNameLength) 個英數字元", "The name must be 1–\(RMEProtocol.presetNameLength) plain ASCII characters"))
         }
+        let users=outputsUsingPreset(number)
+        guard users.isEmpty else {
+            throw BridgeError.message(L("第 \(number) 組正在 \(users.joined(separator:"、")) 使用中。DAC 覆蓋使用中的預設時會改掉該輸出目前的 EQ，請改存到其他格，或先在 DAC 上切換到別組。", "Preset \(number) is in use on \(users.joined(separator:", ")). The DAC changes that output's current EQ when an active preset is replaced, so choose another slot or switch presets on the DAC first."))
+        }
         let batches=try state.presetParameters(number:number)
         // Ignore echoes of the buffer writes; only a flag word from the read-back starts collecting.
         reportingPreset=nil;presetData[number]=nil
@@ -401,6 +405,12 @@ extension Bridge {
         bridgeLog.notice("saving EQ preset \(number, privacy: .public)")
         // Give the device a moment to store, then ask for the preset and its name.
         presetQueue.removeAll { $0 == number };presetQueue.insert(number,at:0);lastPresetRequest=now()+0.35
+    }
+    /// Outputs whose EQ Preset Select points at `number`. Measured on an ADI-2 DAC: replacing such a preset
+    /// resets band types and gains of that output's live EQ, and switching it to Manual first loads Manual's
+    /// own stored EQ, so the only safe save target is a preset no output has selected.
+    func outputsUsingPreset(_ number:Int)->[String] {
+        [(3,"Line Out"),(6,"Phones"),(9,"IEM")].filter { values[$0.0+1]?[28] == number+1 }.map(\.1)
     }
     fileprivate func checkPresetWrite() {
         guard case .verifying(let n)? = presetWrite, reportingPreset == n || presetData[n] != nil, let data=presetData[n] else { return }
