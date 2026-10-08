@@ -82,6 +82,8 @@ final class EQCurveView:NSView {
     override func mouseMoved(with event:NSEvent) { hovered=editable ? hit(event) : nil }
     override func mouseExited(with event:NSEvent) { hovered=nil }
     override func resetCursorRects() { if editable { for h in handles() { addCursorRect(NSRect(x:h.point.x-9,y:h.point.y-9,width:18,height:18),cursor:.openHand) } } }
+    // The window moves by its background; a drag here edits instead of moving the window.
+    override var mouseDownCanMoveWindow: Bool { false }
     override func mouseDown(with event:NSEvent) { dragging=editable ? hit(event) : nil;if dragging != nil { NSCursor.closedHand.push() } }
     override func mouseDragged(with event:NSEvent) {
         guard let index=dragging else { return }

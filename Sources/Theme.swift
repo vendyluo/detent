@@ -176,6 +176,8 @@ final class VolumeDial:NSControl {
         value=clamped;sendAction(action,to:target)
     }
     private func step(_ event:NSEvent?)->Double { event?.modifierFlags.contains(.option) == true ? 0.1 : 0.5 }
+    // The window moves by its background; a drag here edits instead of moving the window.
+    override var mouseDownCanMoveWindow: Bool { false }
     override func mouseDown(with event:NSEvent) {
         guard isEnabled, hasValue else { return }
         window?.makeFirstResponder(self);tracking=true;dragOrigin=convert(event.locationInWindow,from:nil);dragStart=value
