@@ -1,3 +1,5 @@
+<p align="center"><img src="Assets/Logo.svg" width="128" alt="ADI2 Native icon"></p>
+
 # ADI2 Native
 
 Native macOS volume control for the **RME ADI-2 DAC**, with a menu bar app and built-in EQ editor.
@@ -9,22 +11,22 @@ A Swift/AppKit app controls the DAC's hardware volume through USB MIDI. A Core A
 ## Features
 
 - System volume and DAC volume synchronization; Line Out, Phones and IEM control targets.
-- Menu bar volume/mute controls, optional Dock icon and launch at login.
-- Five-band EQ, separate left/right editing, Bass/Treble, DAC preset loading and response preview.
+- Rotary volume dial (drag, scroll or arrow keys; ⌥ for 0.1 dB steps), plus menu bar volume/mute controls whose icon shows the current level. Optional Dock icon and launch at login.
+- Five-band EQ, separate left/right editing, Bass/Treble, DAC preset loading, and a response graph whose band handles can be dragged to set frequency and gain.
 - Per-output volume ranges and a software volume ceiling.
-- Traditional Chinese / English interface with light and dark appearance.
+- Traditional Chinese / English interface. Appearance follows the system or is fixed to Light or Dark; on macOS 26 and later the sidebar, cards and buttons use Liquid Glass.
 - Output-only playback streams, expiring playback lease, and visible driver errors.
 
 ## Status and requirements
 
-Source release: **App 0.4.1 / driver 0.2.2**. Local development build, not a notarized 1.0 release.
+Source release: **App 0.5.0 / driver 0.2.2**. Local development build, not a notarized 1.0 release.
 
 - Apple Silicon Mac; the build script targets macOS 13 or newer. Local hardware testing has been on macOS 27; other OS versions are not yet validated.
 - Xcode Command Line Tools (`xcode-select --install`).
 - Exactly one RME ADI-2 DAC connected over USB, with firmware supporting the official MIDI remote protocol. ADI-2 Pro and 2/4 Pro are not supported.
 - Administrator authentication to install the HAL driver.
 
-Seven test suites pass, including simulated failures and recovery. The latest 0.4.1 / 0.2.2 changes have passed compilation and automated tests; final installation/hardware verification is pending. Extended playback, physical reconnect and sleep/wake coverage across machines remains incomplete.
+Seven test suites pass, including simulated failures and recovery. The latest 0.5.0 / 0.2.2 changes have passed compilation and automated tests; final installation/hardware verification is pending. Extended playback, physical reconnect and sleep/wake coverage across machines remains incomplete.
 
 ## Build and test
 
@@ -35,7 +37,7 @@ cd adi2-native
 ./Scripts/test.sh
 ```
 
-Icons are generated locally by `Scripts/render-icons.swift`. Local builds use ad-hoc signing by default. The DMG prepared on 2026-09-26 passed Developer ID signing, Apple notarization, and Gatekeeper validation. `Scripts/release.sh` supports signed and notarized releases; see the signing section in README.zh-TW.md. The DMG currently contains a folder with command-based installation tools; a graphical PKG installer is still pending.
+Icons are generated locally by `Scripts/render-icons.swift`, which also writes the vector logo `Assets/Logo.svg` from the same geometry. Local builds use ad-hoc signing by default. The DMG prepared on 2026-09-26 passed Developer ID signing, Apple notarization, and Gatekeeper validation. `Scripts/release.sh` supports signed and notarized releases; see the signing section in README.zh-TW.md. The DMG currently contains a folder with command-based installation tools; a graphical PKG installer is still pending.
 
 ## Install and use
 

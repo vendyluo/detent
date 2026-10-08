@@ -1,12 +1,14 @@
+<p align="center"><img src="Assets/Logo.svg" width="128" alt="ADI2 Native 圖示"></p>
+
 # ADI2 Native
 
-讓 Mac 音量鍵與控制中心直接調整 **RME ADI-2 DAC 的硬體音量**。使用 Swift／AppKit 原生介面，提供選單列控制、五段 EQ、Bass／Treble、DAC 預設載入，以及繁體中文／英文切換。
+讓 Mac 音量鍵與控制中心直接調整 **RME ADI-2 DAC 的硬體音量**。使用 Swift／AppKit 原生介面，提供音量旋鈕（拖曳、捲動或方向鍵，按住 ⌥ 以 0.1 dB 微調）、會顯示目前音量的選單列圖示、可直接拖曳頻段的五段 EQ、Bass／Treble、DAC 預設載入，以及繁體中文／英文切換。外觀可跟隨系統或固定為淺色／深色；macOS 26 以上的側欄、卡片與按鈕使用 Liquid Glass。
 
 [English / 完整技術說明](README.md)
 
 ## 目前狀態
 
-App **0.4.1**、HAL 驅動 **0.2.2**。2026-09-26 的 DMG 已完成 Developer ID 簽署、Apple 公證及 Gatekeeper 驗證，尚未宣稱正式 1.0。七組自動測試通過；最新版的最終安裝及實機驗證仍待完成。
+App **0.5.0**、HAL 驅動 **0.2.2**。2026-09-26 的 DMG 已完成 Developer ID 簽署、Apple 公證及 Gatekeeper 驗證，尚未宣稱正式 1.0。七組自動測試通過；最新版的最終安裝及實機驗證仍待完成。
 
 需要 Apple Silicon Mac、Xcode Command Line Tools，以及透過 USB 連接的一台 ADI-2 DAC。編譯目標為 macOS 13 以上，實機測試環境為 macOS 27；其他版本尚未完整驗證。Pro／2/4 Pro 不在支援範圍。
 

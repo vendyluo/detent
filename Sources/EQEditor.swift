@@ -4,38 +4,99 @@ final class EQCurveView:NSView {
     var state:EQState? { didSet { needsDisplay=true } }
     var reference:EQState? { didSet { needsDisplay=true } }
     var rightChannel=false { didSet { needsDisplay=true } }
-    override var intrinsicContentSize:NSSize { NSSize(width:720,height:180) }
-    override func draw(_ dirtyRect:NSRect) {
-        NSColor.controlBackgroundColor.setFill(); NSBezierPath(roundedRect:bounds,xRadius:10,yRadius:10).fill()
-        let plot=bounds.insetBy(dx:38,dy:24)
-        func x(_ hz:Double)->CGFloat { plot.minX+CGFloat(log10(hz/20)/3)*plot.width }
-        func y(_ gain:Double)->CGFloat { plot.midY+CGFloat(max(-18,min(18,gain))/36)*plot.height }
-        let attrs:[NSAttributedString.Key:Any]=[.font:NSFont.systemFont(ofSize:10),.foregroundColor:NSColor.secondaryLabelColor]
-        for gain in [-12,0,12] {
-            let p=NSBezierPath();p.move(to:NSPoint(x:plot.minX,y:y(Double(gain))));p.line(to:NSPoint(x:plot.maxX,y:y(Double(gain))))
-            (gain==0 ? NSColor.separatorColor : NSColor.quaternaryLabelColor).setStroke();p.stroke()
-            ("\(gain)" as NSString).draw(at:NSPoint(x:5,y:y(Double(gain))-6),withAttributes:attrs)
-        }
-        for hz in [20.0,100,1000,10000,20000] {
-            let p=NSBezierPath();p.move(to:NSPoint(x:x(hz),y:plot.minY));p.line(to:NSPoint(x:x(hz),y:plot.maxY));NSColor.quaternaryLabelColor.setStroke();p.stroke()
-            ((hz>=1000 ? "\(Int(hz/1000))k" : "\(Int(hz))") as NSString).draw(at:NSPoint(x:x(hz)-10,y:5),withAttributes:attrs)
-        }
-        if let reference {
-            let original=NSBezierPath();original.lineWidth=1.3;original.setLineDash([4,3],count:2,phase:0)
-            for i in 0...300 {
-                let hz=20*pow(1000,Double(i)/300),p=NSPoint(x:x(hz),y:y(reference.response(frequency:hz,rightChannel:rightChannel)))
-                if i==0 { original.move(to:p) } else { original.line(to:p) }
-            }
-            NSColor.secondaryLabelColor.setStroke();original.stroke()
-        }
-        guard let state=state else { return }
-        let path=NSBezierPath();path.lineWidth=2.2
-        for i in 0...300 {
-            let hz=20*pow(1000,Double(i)/300), p=NSPoint(x:x(hz),y:y(state.response(frequency:hz,rightChannel:rightChannel)))
+    var editable=false
+    /// Called while dragging a handle: band index (0–4 EQ, 5 Bass, 6 Treble), frequency, gain.
+    var onDrag:((Int,Double,Double)->Void)?
+    private var dragging:Int?
+    private var hovered:Int? { didSet { if hovered != oldValue { needsDisplay=true } } }
+    override var intrinsicContentSize:NSSize { NSSize(width:NSView.noIntrinsicMetric,height:220) }
+    private var plot:NSRect { bounds.inset(left:40,right:18,top:18,bottom:28) }
+    private func x(_ hz:Double)->CGFloat { plot.minX+CGFloat(log10(max(20,hz)/20)/3)*plot.width }
+    private func y(_ gain:Double)->CGFloat { plot.midY+CGFloat(max(-15,min(15,gain))/30)*plot.height }
+    private func hz(_ x:CGFloat)->Double { 20*pow(1000,Double((x-plot.minX)/plot.width)) }
+    private func gain(_ y:CGFloat)->Double { Double((y-plot.midY)/plot.height)*30 }
+    private func curve(_ s:EQState)->NSBezierPath {
+        let path=NSBezierPath()
+        for i in 0...360 {
+            let f=20*pow(1000,Double(i)/360), p=NSPoint(x:x(f),y:y(s.response(frequency:f,rightChannel:rightChannel)))
             if i==0 { path.move(to:p) } else { path.line(to:p) }
         }
-        NSColor.controlAccentColor.setStroke();path.stroke()
+        return path
     }
+    /// Handles sit on the combined curve so they read as "grab the curve here".
+    private func handles()->[(index:Int,band:EQBand,point:NSPoint)] {
+        guard let s=state else { return [] }
+        var result:[(Int,EQBand)]=[]
+        if s.enabled { result += (rightChannel && s.dual ? s.right : s.left).enumerated().map { ($0.offset,$0.element) } }
+        if s.btEnabled { result += [(5,s.bass),(6,s.treble)] }
+        return result.map { i,b in (i,b,NSPoint(x:x(b.frequency),y:y(s.response(frequency:b.frequency,rightChannel:rightChannel)))) }
+    }
+    override func draw(_ dirtyRect:NSRect) {
+        // The host surface supplies the edge; this only tints the plot area for contrast.
+        Theme.display.setFill();NSBezierPath(roundedRect:bounds,xRadius:20,yRadius:20).fill()
+        let attrs:[NSAttributedString.Key:Any]=[.font:Theme.rounded(10,.medium),.foregroundColor:NSColor.tertiaryLabelColor]
+        for g in [-12,-6,0,6,12] {
+            let p=NSBezierPath();p.move(to:NSPoint(x:plot.minX,y:y(Double(g))));p.line(to:NSPoint(x:plot.maxX,y:y(Double(g))))
+            (g==0 ? NSColor.separatorColor : Theme.track).setStroke();p.lineWidth=g==0 ? 1 : 0.6;p.stroke()
+            let label=NSAttributedString(string:g>0 ? "+\(g)" : g<0 ? "−\(-g)" : "0",attributes:attrs)
+            label.draw(at:NSPoint(x:plot.minX-8-label.size().width,y:y(Double(g))-label.size().height/2))
+        }
+        for f in [20.0,50,100,200,500,1000,2000,5000,10000,20000] {
+            let p=NSBezierPath();p.move(to:NSPoint(x:x(f),y:plot.minY));p.line(to:NSPoint(x:x(f),y:plot.maxY));Theme.track.setStroke();p.lineWidth=0.6;p.stroke()
+            let label=NSAttributedString(string:f>=1000 ? "\(Int(f/1000))k" : "\(Int(f))",attributes:attrs)
+            label.draw(at:NSPoint(x:min(plot.maxX-label.size().width,max(plot.minX,x(f)-label.size().width/2)),y:plot.minY-18))
+        }
+        if let reference {
+            let original=curve(reference);original.lineWidth=1.3;original.setLineDash([4,3],count:2,phase:0)
+            NSColor.secondaryLabelColor.setStroke();original.stroke()
+        }
+        guard let state else { return }
+        let line=curve(state), area=line.copy() as! NSBezierPath
+        area.line(to:NSPoint(x:plot.maxX,y:y(0)));area.line(to:NSPoint(x:plot.minX,y:y(0)));area.close()
+        NSGraphicsContext.saveGraphicsState();NSBezierPath(rect:plot).addClip()
+        NSGradient(starting:NSColor.controlAccentColor.withAlphaComponent(0.28),ending:NSColor.controlAccentColor.withAlphaComponent(0.04))?.draw(in:area,angle:-90)
+        line.lineWidth=2.4;line.lineJoinStyle = .round;NSColor.controlAccentColor.setStroke();line.stroke()
+        NSGraphicsContext.restoreGraphicsState()
+        for h in handles() {
+            let active=h.index==dragging || h.index==hovered, r:CGFloat=active ? 9 : 7.5
+            let dot=NSBezierPath(ovalIn:NSRect(x:h.point.x-r,y:h.point.y-r,width:r*2,height:r*2))
+            Theme.bands[h.index].setFill();dot.fill();Theme.display.setStroke();dot.lineWidth=2;dot.stroke()
+            let tag=NSAttributedString(string:h.index<5 ? "\(h.index+1)" : h.index==5 ? "B" : "T",attributes:[.font:Theme.rounded(9,.bold),.foregroundColor:NSColor.white])
+            tag.draw(at:NSPoint(x:h.point.x-tag.size().width/2,y:h.point.y-tag.size().height/2))
+            if active {
+                let readout=NSAttributedString(string:"\(h.band.frequency>=1000 ? String(format:"%.2gk",h.band.frequency/1000) : String(format:"%.0f",h.band.frequency)) Hz  \(Theme.formatDB(h.band.gain)) dB",attributes:[.font:Theme.rounded(11,.semibold),.foregroundColor:NSColor.labelColor])
+                let box=NSRect(x:min(plot.maxX-readout.size().width-12,max(plot.minX,h.point.x-readout.size().width/2-6)),y:min(plot.maxY-20,h.point.y+14),width:readout.size().width+12,height:20)
+                Theme.card.setFill();NSBezierPath(roundedRect:box,xRadius:6,yRadius:6).fill()
+                readout.draw(at:NSPoint(x:box.minX+6,y:box.minY+2))
+            }
+        }
+    }
+    private func hit(_ event:NSEvent)->Int? {
+        let p=convert(event.locationInWindow,from:nil)
+        return handles().min { hypot($0.point.x-p.x,$0.point.y-p.y)<hypot($1.point.x-p.x,$1.point.y-p.y) }.flatMap { hypot($0.point.x-p.x,$0.point.y-p.y)<14 ? $0.index : nil }
+    }
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas();trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect:bounds,options:[.mouseMoved,.mouseEnteredAndExited,.activeInKeyWindow],owner:self))
+    }
+    override func mouseMoved(with event:NSEvent) { hovered=editable ? hit(event) : nil }
+    override func mouseExited(with event:NSEvent) { hovered=nil }
+    override func resetCursorRects() { if editable { for h in handles() { addCursorRect(NSRect(x:h.point.x-9,y:h.point.y-9,width:18,height:18),cursor:.openHand) } } }
+    override func mouseDown(with event:NSEvent) { dragging=editable ? hit(event) : nil;if dragging != nil { NSCursor.closedHand.push() } }
+    override func mouseDragged(with event:NSEvent) {
+        guard let index=dragging else { return }
+        let p=convert(event.locationInWindow,from:nil)
+        // Ranges follow the DAC protocol so a drag can never produce a value Apply would reject.
+        let limits:(Double,Double)=index==5 ? (20,150) : index==6 ? (3000,10000) : index>=3 ? (200,20000) : (20,20000)
+        var f=min(limits.1,max(limits.0,hz(p.x)))
+        f=f>=1000 ? (f/10).rounded()*10 : f.rounded()
+        let g=min(12,max(-12,(gain(p.y)*2).rounded()/2))
+        onDrag?(index,f,g)
+    }
+    override func mouseUp(with event:NSEvent) { if dragging != nil { NSCursor.pop() };dragging=nil;window?.invalidateCursorRects(for:self);needsDisplay=true }
+}
+private extension NSRect {
+    func inset(left:CGFloat,right:CGFloat,top:CGFloat,bottom:CGFloat)->NSRect { NSRect(x:minX+left,y:minY+bottom,width:width-left-right,height:height-top-bottom) }
 }
 final class EQEditor:NSObject,NSTextFieldDelegate {
     let view=NSStackView()
@@ -68,8 +129,10 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
         for n in 1...20 { preset.addItem(withTitle:L("\(n). 讀取中…", "\(n). Loading…"));preset.lastItem?.tag=n }
         preset.target=self;preset.action=#selector(presetChanged);header.addArrangedSubview(preset)
         view.addArrangedSubview(header)
-        view.addArrangedSubview(curve);curve.widthAnchor.constraint(equalToConstant:736).isActive=true;curve.heightAnchor.constraint(equalToConstant:180).isActive=true
-        let caption=NSTextField(labelWithString:L("頻率響應示意（RBJ 模型）；實際聲音由 DAC 處理，曲線不含 Loudness 等其他 DSP。", "Approximate response (RBJ model). DSP runs on the DAC; Loudness and other processing are not shown."))
+        let curveHost=Theme.surface(curve,radius:20,padding:0)
+        view.addArrangedSubview(curveHost);curveHost.widthAnchor.constraint(equalTo:view.widthAnchor).isActive=true;curveHost.widthAnchor.constraint(greaterThanOrEqualToConstant:600).isActive=true;curve.heightAnchor.constraint(equalToConstant:230).isActive=true
+        curve.onDrag={ [weak self] in self?.dragged(band:$0,frequency:$1,gain:$2) }
+        let caption=NSTextField(labelWithString:L("頻率響應示意（RBJ 模型）；實際聲音由 DAC 處理，曲線不含 Loudness 等其他 DSP。可直接拖曳圓點調整頻率與增益。", "Approximate response (RBJ model). DSP runs on the DAC; Loudness and other processing are not shown. Drag the dots to adjust frequency and gain."))
         caption.font = .systemFont(ofSize:11);caption.textColor = .secondaryLabelColor;view.addArrangedSubview(caption)
         var rows:[[NSView]]=[[NSTextField(labelWithString:L("頻段", "Band")),NSTextField(labelWithString:L("類型", "Type")),NSTextField(labelWithString:L("頻率 Hz", "Frequency Hz")),NSTextField(labelWithString:L("增益 dB", "Gain dB")),NSTextField(labelWithString:"Q")]]
         for i in 0..<5 {
@@ -78,16 +141,20 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
             type.addItems(withTitles:kinds.map(\.rawValue));type.target=self;type.action=#selector(changed)
             type.widthAnchor.constraint(equalToConstant:145).isActive=true
             let f=field(),g=field(),q=field();types.append(type);frequencies.append(f);gains.append(g);qs.append(q)
-            rows.append([NSTextField(labelWithString:"Band \(i+1)"),type,f,g,q])
+            rows.append([bandLabel("Band \(i+1)",i),type,f,g,q])
         }
         for name in ["Bass","Treble"] {
             let f=field(),g=field(),q=field();btFields += [f,g,q]
-            rows.append([NSTextField(labelWithString:name),NSTextField(labelWithString:name == "Bass" ? "Low Shelf" : "High Shelf"),f,g,q])
+            rows.append([bandLabel(name,name == "Bass" ? 5 : 6),NSTextField(labelWithString:name == "Bass" ? "Low Shelf" : "High Shelf"),f,g,q])
         }
-        let grid=NSGridView(views:rows);grid.rowSpacing=8;grid.columnSpacing=16
+        for header in rows[0] { (header as? NSTextField)?.font = .systemFont(ofSize:11,weight:.semibold);(header as? NSTextField)?.textColor = .secondaryLabelColor }
+        let grid=NSGridView(views:rows);grid.rowSpacing=8;grid.columnSpacing=16;grid.rowAlignment = .firstBaseline
         for (index,width) in [70.0,150.0,140.0,140.0,120.0].enumerated() { grid.column(at:index).width=CGFloat(width);grid.column(at:index).xPlacement = .leading }
-        view.addArrangedSubview(grid)
+        let gridRow=NSStackView(views:[grid,NSView()]);gridRow.alignment = .top
+        let gridHost=Theme.surface(gridRow,radius:20,padding:18)
+        view.addArrangedSubview(gridHost);gridHost.widthAnchor.constraint(equalTo:view.widthAnchor).isActive=true
         let actions=NSStackView();actions.spacing=12
+        for b in [apply,discard,reload] { Theme.style(b) }
         apply.target=self;apply.action=#selector(applyChanges);reload.target=self;reload.action=#selector(reloadHardware)
         discard.target=self;discard.action=#selector(discardDraft);compare.target=self;compare.action=#selector(compareChanged)
         actions.addArrangedSubview(apply);actions.addArrangedSubview(discard);actions.addArrangedSubview(reload);actions.addArrangedSubview(compare);view.addArrangedSubview(actions)
@@ -95,8 +162,17 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
         message.preferredMaxLayoutWidth=730;view.addArrangedSubview(message)
         refresh()
     }
+    func bandLabel(_ title:String,_ color:Int)->NSTextField {
+        let s=NSMutableAttributedString(string:"●  ",attributes:[.foregroundColor:Theme.bands[color],.font:NSFont.systemFont(ofSize:11)])
+        s.append(NSAttributedString(string:title,attributes:[.foregroundColor:NSColor.labelColor,.font:NSFont.systemFont(ofSize:13,weight:.medium)]))
+        let label=NSTextField(labelWithAttributedString:s);return label
+    }
+    func dragged(band:Int,frequency:Double,gain:Double) {
+        let (f,g)=band<5 ? (frequencies[band],gains[band]) : (btFields[band==5 ? 0 : 3],btFields[band==5 ? 1 : 4])
+        f.stringValue=String(format:"%.0f",frequency);g.stringValue=String(format:"%.1f",gain);changed()
+    }
     func field()->NSTextField {
-        let f=NSTextField(string:"");f.widthAnchor.constraint(equalToConstant:95).isActive=true
+        let f=NSTextField(string:"");f.alignment = .right;f.font=Theme.rounded(13);f.widthAnchor.constraint(equalToConstant:95).isActive=true
         f.delegate=self;f.target=self;f.action=#selector(changed);return f
     }
     func number(_ f:NSTextField)throws->Double {
@@ -141,6 +217,8 @@ final class EQEditor:NSObject,NSTextFieldDelegate {
         for t in types { t.isEnabled=editable }
         side.isEnabled=editable && (draft?.dual ?? false)
         apply.isEnabled=editable && dirty && validationMessage == nil && state==baseline
+        Theme.setProminent(apply,apply.isEnabled)
+        curve.editable=editable
         discard.isEnabled=dirty && !pendingApply
         compare.isEnabled=baseline != nil
         curve.reference=compare.state == .on ? baseline : nil

@@ -31,23 +31,19 @@ final class StatusKnob {
         render()
     }
     private func render() { button?.image=Self.image(position:position,amplitude:amplitude) }
+    /// Same arc-and-dot mark as the app icon; the lit arc tracks the volume and thickens slightly while moving.
     static func image(position:Double,amplitude:Double)->NSImage {
         let image=NSImage(size:NSSize(width:24,height:18),flipped:false) { _ in
-            NSColor.black.setStroke()
-            let ring=NSBezierPath(ovalIn:NSRect(x:5.5,y:2.5,width:13,height:13));ring.lineWidth=1.65;ring.stroke()
-            let angle=(225-270*position)*Double.pi/180
-            let pointer=NSBezierPath();pointer.lineWidth=1.65;pointer.lineCapStyle = .round
-            pointer.move(to:NSPoint(x:12+1.5*cos(angle),y:9+1.5*sin(angle)))
-            pointer.line(to:NSPoint(x:12+5.1*cos(angle),y:9+5.1*sin(angle)));pointer.stroke()
-            for start in [0.5,19.5] {
-                let wave=NSBezierPath();wave.lineWidth=1.4;wave.lineCapStyle = .round
-                for step in 0...20 {
-                    let t=Double(step)/20
-                    let point=NSPoint(x:start+4*t,y:9+amplitude*1.15*sin(t*2*Double.pi))
-                    if step==0 { wave.move(to:point) } else { wave.line(to:point) }
-                }
-                wave.stroke()
+            let c=NSPoint(x:12,y:9), p=min(1,max(0,position))
+            func angle(_ v:Double)->CGFloat { CGFloat(225-270*v) }
+            let track=NSBezierPath();track.appendArc(withCenter:c,radius:7,startAngle:angle(0),endAngle:angle(1),clockwise:true)
+            track.lineWidth=2;track.lineCapStyle = .round;NSColor.black.withAlphaComponent(0.35).setStroke();track.stroke()
+            if p>0.005 {
+                let lit=NSBezierPath();lit.appendArc(withCenter:c,radius:7,startAngle:angle(0),endAngle:angle(p),clockwise:true)
+                lit.lineWidth=2+0.5*CGFloat(amplitude);lit.lineCapStyle = .round;NSColor.black.setStroke();lit.stroke()
             }
+            let a=angle(p)*CGFloat.pi/180;NSColor.black.setFill()
+            NSBezierPath(ovalIn:NSRect(x:c.x+3*cos(a)-1.6,y:c.y+3*sin(a)-1.6,width:3.2,height:3.2)).fill()
             return true
         }
         image.isTemplate=true;return image

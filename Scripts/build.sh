@@ -18,7 +18,7 @@ p=Path('Vendor/proxyAudioDevice/Info.plist')
 d=plistlib.loads(p.read_bytes())
 d.update(CFBundleExecutable='ADI2Native',CFBundleIdentifier='local.ADI2Native.Driver',CFBundleName='ADI2Native',CFBundleShortVersionString='0.2.2',CFBundleVersion='5')
 Path('build/ADI2Native.driver/Contents/Info.plist').write_bytes(plistlib.dumps(d))
-d=dict(CFBundleExecutable='ADI2Native',CFBundleIdentifier='local.ADI2Native.App',CFBundleName='ADI2 Native',CFBundlePackageType='APPL',CFBundleShortVersionString='0.4.1',CFBundleVersion='8',CFBundleLocalizations=['zh-Hant','en'],LSMinimumSystemVersion='13.0',NSHighResolutionCapable=True,LSUIElement=True,CFBundleIconFile='AppIcon')
+d=dict(CFBundleExecutable='ADI2Native',CFBundleIdentifier='local.ADI2Native.App',CFBundleName='ADI2 Native',CFBundlePackageType='APPL',CFBundleShortVersionString='0.5.0',CFBundleVersion='9',CFBundleLocalizations=['zh-Hant','en'],LSMinimumSystemVersion='13.0',NSHighResolutionCapable=True,LSUIElement=True,CFBundleIconFile='AppIcon')
 Path('build/ADI2 Native.app/Contents/Info.plist').write_bytes(plistlib.dumps(d))
 PY
 mkdir -p build/ADI2Native.driver/Contents/Resources

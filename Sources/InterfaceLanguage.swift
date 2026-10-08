@@ -1,12 +1,17 @@
 import AppKit
 
 extension AppDelegate {
+    @objc func changeAppearance() {
+        settings.appearance=["auto","light","dark"][max(0,appearancePicker.indexOfSelectedItem)]
+        Theme.apply(appearance:settings.appearance)
+    }
     @objc func changeLanguage() {
         Localization.language=languagePicker.indexOfSelectedItem==1 ? "en" : "zh-Hant"
         settings.defaults.set(Localization.language,forKey:"interfaceLanguage")
         let selected=max(0,navigation.selectedRow)
         navigation.reloadData();navigation.selectRowIndexes(IndexSet(integer:selected),byExtendingSelection:false)
         pageTitle.stringValue=pageNames[selected]
+        localizeInterface()
         refresh(force:true)
     }
     func localizeInterface() {
@@ -31,12 +36,15 @@ extension AppDelegate {
         if let m=NSApp.mainMenu { menu(m) }
     }
     func sidebarBadge(_ index:Int)->NSImage {
-        let colors:[NSColor]=[.systemBlue,.systemPurple,.systemOrange]
-        let symbol=["speaker.wave.2.fill","slider.horizontal.3","gearshape.fill"][index]
-        return NSImage(size:NSSize(width:26,height:26),flipped:false) { _ in
-            colors[index].setFill();NSBezierPath(roundedRect:NSRect(x:1,y:1,width:24,height:24),xRadius:6,yRadius:6).fill()
-            let icon=NSImage(systemSymbolName:symbol,accessibilityDescription:nil)?.withSymbolConfiguration(.init(paletteColors:[.white]))
-            icon?.draw(in:NSRect(x:5,y:5,width:16,height:16));return true
+        badgeImage(["speaker.wave.2.fill","slider.horizontal.3","gearshape.fill"][index],[NSColor.systemBlue,.systemPurple,.systemGray][index],size:26)
+    }
+    func badgeImage(_ symbol:String,_ color:NSColor,size:CGFloat)->NSImage {
+        NSImage(size:NSSize(width:size,height:size),flipped:false) { rect in
+            let shape=NSBezierPath(roundedRect:rect.insetBy(dx:1,dy:1),xRadius:size*0.25,yRadius:size*0.25)
+            NSGradient(starting:color.blended(withFraction:0.18,of:.white) ?? color,ending:color)?.draw(in:shape,angle:-90)
+            let icon=NSImage(systemSymbolName:symbol,accessibilityDescription:nil)?.withSymbolConfiguration(.init(pointSize:size*0.42,weight:.semibold).applying(.init(paletteColors:[.white])))
+            if let icon { let s=icon.size;icon.draw(in:NSRect(x:(size-s.width)/2,y:(size-s.height)/2,width:s.width,height:s.height)) }
+            return true
         }
     }
     func settingRow(_ title:String,_ control:NSView)->NSView {

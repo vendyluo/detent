@@ -40,6 +40,8 @@ final class Bridge {
     private var presetQueue: [Int] = []
     private var lastPresetRequest: TimeInterval = -1e9
     private var lastActivationAttempt: TimeInterval = -1e9
+    /// Set while an unmute or ceiling clamp awaits DAC confirmation; the playback lease stays closed until then.
+    private var holdGate = false
     var db: Double? { values[channel]?[12].map { Double($0)/10 } }
     var hardwareMuted: Bool { values[channel]?[15] == 1 }
     var connected: Bool { now()-lastSeen < 3 && db != nil && values[channel]?[15] != nil }
@@ -126,7 +128,7 @@ final class Bridge {
         do {
             try audio.setDefault(p.id,false); try audio.setDefault(p.id,true)
             settings.deviceUID=targets[0].uid; resumeRouteUID=Audio.proxyUID
-            if db > range.maximum { try send([RMEParameter(channel:channel,index:12,value:Int((range.maximum*10).rounded()))]) }
+            if db > range.maximum { holdGate=true; try send([RMEParameter(channel:channel,index:12,value:Int((range.maximum*10).rounded()))]) }
             else { try audio.configure(box,"bridgeReady=1"); lastLease=now() }
             status=L("原生控制已啟用 · \(channelName)", "Native control enabled · \(channelName)")
         } catch { stop(restore:true); throw error }
@@ -142,12 +144,13 @@ final class Bridge {
                 }
             }
         }
-        enabled=false; pending.removeAll(); lastLease = -1e9
+        enabled=false; pending.removeAll(); holdGate=false; lastLease = -1e9
     }
     func disable() { failureMessage=nil;setWanted(false); stop(restore:true); resumeRouteUID=nil; status=L("原生控制已停用", "Native control off"); onUpdate?() }
     func shutdown() { timer?.invalidate(); stop(restore:true); midi.disconnect() }
     func rebindDevice() { disable(); settings.deviceUID=nil; status=L("已解除裝置綁定，下次啟用會綁定目前 DAC", "Device pairing cleared. The next activation will pair the connected DAC."); onUpdate?() }
     func setRange(_ newRange:VolumeRange) throws {
+        let newRange=newRange.snapped
         guard newRange.valid else { throw BridgeError.message(L("音量範圍無效", "Invalid volume range")) }
         let previous=range
         do {
@@ -159,7 +162,7 @@ final class Bridge {
                 lastScalar=newRange.scalar(min(db,newRange.maximum))
                 try audio.setVolume(p.id,lastScalar)
                 try settings.setRange(newRange,channel:channel)
-                if db > newRange.maximum { try send([RMEParameter(channel:channel,index:12,value:Int((newRange.maximum*10).rounded()))]) }
+                if db > newRange.maximum { holdGate=true; try send([RMEParameter(channel:channel,index:12,value:Int((newRange.maximum*10).rounded()))]) }
                 lastLease = -1e9
             } else { try settings.setRange(newRange,channel:channel) }
         } catch {
@@ -206,7 +209,7 @@ final class Bridge {
         }
         if enabled, pending.isEmpty, let p=proxy, let db=db {
             if db > range.maximum {
-                do { try audio.configure(box,"bridgeReady=0"); try send([RMEParameter(channel:channel,index:12,value:Int((range.maximum*10).rounded()))]) }
+                do { holdGate=true; try audio.configure(box,"bridgeReady=0"); try send([RMEParameter(channel:channel,index:12,value:Int((range.maximum*10).rounded()))]) }
                 catch { fail(error) }
             } else if let l=try? audio.volume(p.id,1), let r=try? audio.volume(p.id,2), let m=try? audio.muted(p.id),
                       abs(l-lastScalar)<0.00005, abs(r-lastScalar)<0.00005, m==lastMute {
@@ -266,7 +269,7 @@ final class Bridge {
             let s=abs(l-lastScalar)>0.00005 ? l : r
             let volumeChanged=abs(s-lastScalar)>0.00005
             if volumeChanged || m != lastMute {
-                if lastMute && !m { try audio.configure(box,"bridgeReady=0") }
+                if lastMute && !m { holdGate=true; try audio.configure(box,"bridgeReady=0") }
                 var changes:[RMEParameter]=[]
                 if volumeChanged { changes.append(RMEParameter(channel:channel,index:12,value:Int((range.decibels(s)*10).rounded()))) }
                 let mute=m || s<=0
@@ -275,7 +278,10 @@ final class Bridge {
                 try audio.setVolume(p.id,s); try audio.setMute(p.id,mute)
                 try send(changes); lastLease = -1e9
             }
-            if pending.isEmpty && now()-lastLease>0.4 { try audio.configure(box,"bridgeReady=1"); lastLease=now() }
+            // Plain volume changes keep the lease alive while their acknowledgements are in flight;
+            // otherwise a continuous Control Center drag would starve the 2 s lease and drop audio.
+            if pending.isEmpty { holdGate=false }
+            if !holdGate && now()-lastLease>0.4 { try audio.configure(box,"bridgeReady=1"); lastLease=now() }
             status=L("原生控制已啟用", "Native control enabled")+" · \(channelName) · \(String(format:"%.1f",db ?? 0)) dB\(hardwareMuted ? L(" · 靜音", " · Muted") : "")"
         } catch { fail(error) }
         onUpdate?()

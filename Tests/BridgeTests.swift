@@ -64,6 +64,22 @@ import CoreAudio
         try b2.enable();audio.playbackError=true;clock.time += 1.1;b2.tick()
         assert(!b2.enabled && !b2.wanted && !audio.gate && b2.failureMessage != nil)
         audio.playbackError=false;try b2.enable();clock.time += 1.1;b2.tick();assert(b2.enabled && audio.gate)
+        // Off-grid ceilings snap to the DAC's 0.1 dB grid instead of clamp-looping above the ceiling.
+        b2.disable();midi.hardware(6,12,-100);try b2.setRange(VolumeRange(minimum:-80,maximum:-20.04))
+        assert(b2.range.maximum == -20.0 && Settings(defaults).range(6).maximum == -20.0)
+        defaults.set(-20.04,forKey:"maximum.6");assert(b2.range.maximum == -20.0)
+        let sendsBefore=midi.writes.count;try b2.enable()
+        assert(b2.enabled && midi.state[6]?[12] == -200 && midi.writes.count-sendsBefore < 6)
+        // A continuous volume drag with acknowledgements in flight keeps renewing the lease.
+        midi.acknowledge=false;clock.time += 1;b2.tick();audio.configurations.removeAll()
+        for step in 1...40 { audio.scalar=0.5+Float(step)/200;clock.time += 0.05;b2.tick() }
+        assert(b2.enabled && audio.configurations.filter { $0=="bridgeReady=1" }.count >= 4)
+        // Unmuting still closes the gate until the DAC confirms.
+        midi.acknowledge=true;midi.snapshot();audio.mute=true;b2.tick();midi.acknowledge=false;audio.configurations.removeAll()
+        audio.mute=false;b2.tick();clock.time += 0.5;b2.tick()
+        assert(!audio.gate && !audio.configurations.contains("bridgeReady=1"))
+        midi.acknowledge=true;midi.snapshot();clock.time += 0.5;b2.tick();assert(audio.gate)
+        print("PASS: off-grid ceiling snaps without a clamp loop; lease renews during a continuous drag; unmute holds the gate until confirmed")
         print("PASS: range configuration/scalar failures stop renewal and roll back preferences; driver failure stops control; explicit retry recovers")
         print("PASS: startup/handshake, two-way volume, unrelated topology, reconnect with new IDs, sleep/wake, ceiling, mute without gain jump, manual routing, target persistence, restart, acknowledgement timeout")
     }
