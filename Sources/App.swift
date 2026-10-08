@@ -150,11 +150,10 @@ final class AppDelegate:NSObject,NSApplicationDelegate,NSMenuDelegate,NSWindowDe
         loginStatus.stringValue=login == .requiresApproval ? L("登入啟動等待系統核准：請開啟「登入項目設定」。", "Login launch needs approval. Open Login Items to allow it.") : L("登入啟動由 macOS 登入項目管理；移動 App 後需重新設定。", "Managed by macOS Login Items. Set it up again if you move this app.")
         editor.refresh()
     }
-    /// The DAC only reports whether some front headphone jack is in use, not which one.
+    /// Only the IEM jack is reported by the DAC; Phones and Line Out have no plug sensing.
     func jackNote(_ channel:Int)->String? {
-        guard bridge.connected, let plugged=bridge.headphonesPlugged else { return nil }
-        if channel == 3 { return plugged ? L("前面板已插耳機", "Headphones plugged in front") : nil }
-        return plugged ? nil : L("前面板未插耳機", "No headphones plugged in front")
+        guard channel == 9, bridge.connected, let plugged=bridge.iemPlugged else { return nil }
+        return plugged ? L("已插入", "Plugged in") : L("未插入", "Not plugged in")
     }
     func report(_ error:Error) { show();let a=NSAlert(error:error);a.beginSheetModal(for:window) }
     func attempt(_ action:()throws->Void) { do { try action();refresh(force:true) } catch { report(error) } }

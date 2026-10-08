@@ -95,16 +95,16 @@ import CoreAudio
             a.scalar=0.7;a.rightScalar=0;t.time += 0.1;bb.tick();assert(m.state[3]?[15] == 0)
         }
         print("PASS: left/right balance is preserved through sync and full balance does not mute")
-        // The front headphone flag arrives on the Line Out address and follows plugging.
+        // The IEM jack flag arrives on the Line Out address and follows plugging.
         do {
             let m=FakeMIDI(),t=Clock(),suite="local.ADI2Native.JackTests.\(UUID())",d=UserDefaults(suiteName:suite)!
             defer { d.removePersistentDomain(forName:suite) }
             let jb=try Bridge(midi:m,audio:FakeAudio(),settings:Settings(d),now:{t.time},startTimer:false)
-            assert(jb.headphonesPlugged == nil)
-            m.hardware(3,2,1);assert(jb.headphonesPlugged == true)
-            m.hardware(3,2,0);assert(jb.headphonesPlugged == false)
+            assert(jb.iemPlugged == nil)
+            m.hardware(3,2,1);assert(jb.iemPlugged == true)
+            m.hardware(3,2,0);assert(jb.iemPlugged == false)
         }
-        print("PASS: front headphone jack state is read from the Line Out address")
+        print("PASS: IEM jack state is read from the Line Out address")
         // Below the slider floor, steps move from the real level instead of jumping to the floor.
         do {
             let suite="local.ADI2Native.FloorTests.\(UUID())",floorDefaults=UserDefaults(suiteName:suite)!

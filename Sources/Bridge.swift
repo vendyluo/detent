@@ -64,9 +64,9 @@ final class Bridge {
     var btEnabled: Bool { values[eqAddress]?[20] == 1 }
     var dualEQ: Bool { values[channel]?[11] == 1 }
     var selectedPreset: Int? { values[eqAddress]?[28] }
-    /// Reported on the Line Out address: 1 while anything is plugged into a front headphone jack.
-    /// The DAC does not say which jack (Phones or IEM), so this is a single front-panel flag.
-    var headphonesPlugged: Bool? { values[3]?[2].map { $0 == 1 } }
+    /// Reported on the Line Out address: 1 while the 3.5 mm IEM jack is in use.
+    /// Measured on hardware; the 6.3 mm Phones jack changes no parameter, so its state is unknown.
+    var iemPlugged: Bool? { values[3]?[2].map { $0 == 1 } }
     var channelName: String { [3:"Line Out",6:"Phones",9:"IEM"][channel] ?? "Line Out" }
 
     convenience init() throws { try self.init(midi:RMEConnection(),audio:SystemAudio(),settings:Settings()) }
