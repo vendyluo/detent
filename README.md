@@ -67,10 +67,23 @@ To uninstall, quit the app and run `./Uninstall.command`. This removes the HAL d
 - Selecting Line Out/Phones/IEM selects the controlled volume, not the DAC's physical audio route.
 - The macOS balance setting is kept but not applied: gain is set on the DAC, so use the DAC's own balance setting.
 - If the DAC locks the controlled output's volume, playback moves to the physical DAC and native control resumes automatically once it is unlocked.
-- Driver 0.3.x uses configuration protocol 4. After updating the app, run `./Install.command` again; the app reports an outdated driver until you do.
+- Driver 0.3.x and later use configuration protocol 4. After updating the app, run `./Install.command` again; the app reports an outdated driver until you do.
 - Stereo PCM only; DSD/DoP and exclusive playback are unsupported. Players using the physical DAC directly bypass the proxy.
 - A missing app lease silences proxy playback. If recovery fails, manually select the physical DAC in macOS Sound settings.
 - EQ response graphs are approximate. Applying edits changes current settings, not stored preset slots.
+- Saving to a DAC preset writes only that slot and is verified by reading it back. A preset that any output has selected cannot be replaced, and presets cannot be deleted (see below).
+
+### DAC EQ presets: measured device behavior
+
+Measured on an ADI-2 DAC FS in October 2026. Where the device differs from RME's MIDI table (`MIDITable_ADI-2_230930`), Detent follows the device.
+
+- **The flag word is reported at index 1 but written at index 2.** RME's table lists EQ-Preset-Flags at index 2 (address 13); its read example and the device report it at index 1. The device ignores a flag written at index 1. Bits 8..4 are the preset number counted from zero, bit 0 is Dual EQ, and all four low bits set means empty.
+- **The flag commits a buffer.** Address 13/14 parameters and the preset name (`0x06`) go into a temporary buffer that the flag word stores into the given slot. Send the name before the flag. The buffer keeps its contents afterwards, so a later flag stores the same data again.
+- **There is no delete.** A flag with the empty pattern does not clear a slot; it stores the buffer like any other flag. RME has said on its forum that single-preset delete was left out on purpose because there is no undo. A slot can only be overwritten.
+- **Presets do not store EQ Enable or B/T Enable.** Bands, Bass/Treble gain/frequency/Q and the name are stored.
+- **Read-back arrives in parts:** the flag, both channels' bands (right as zeros when Dual EQ is off), then Bass/Treble in a later message, then the name as 14 right-aligned ASCII characters.
+- **Replacing a preset that an output has selected changes that output's live EQ.** Band types and gains of that output are reset while frequencies and Q stay. Switching that output to Manual first does not help: Manual has its own stored EQ, and selecting it loads that EQ. Detent therefore only saves into presets that no output has selected; saving into such a preset leaves every output unchanged.
+- **EQ Preset Select (index 28):** 0 Manual, 1 Temp, 2–21 presets 1–20, 22 clear. Editing bands directly switches a preset selection to Temp.
 
 Hardware verification is available via `./Scripts/verify-live.sh`. It changes routing, volume, mute and EQ temporarily and attempts to restore them. Close the app first. This is not part of the hardware-free test suite.
 
