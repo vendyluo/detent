@@ -100,7 +100,7 @@ final class MenuSegments:NSControl {
     required init?(coder:NSCoder) { nil }
     override var intrinsicContentSize:NSSize { NSSize(width:NSView.noIntrinsicMetric,height:28) }
     override var mouseDownCanMoveWindow:Bool { false }
-    private func rect(_ i:Int)->NSRect {
+    fileprivate func rect(_ i:Int)->NSRect {
         let inner=bounds.insetBy(dx:2,dy:2),w=inner.width/CGFloat(labels.count)
         return NSRect(x:inner.minX+w*CGFloat(i),y:inner.minY,width:w,height:inner.height)
     }
@@ -115,12 +115,33 @@ final class MenuSegments:NSControl {
         }
     }
     override func mouseDown(with event:NSEvent) {
-        guard isEnabled else { return }
         let p=convert(event.locationInWindow,from:nil)
-        if let i=labels.indices.first(where:{ rect($0).contains(p) }), i != selectedSegment { selectedSegment=i;sendAction(action,to:target) }
+        if let i=labels.indices.first(where:{ rect($0).contains(p) }) { _ = select(i) }
     }
+    fileprivate func select(_ i:Int)->Bool {
+        guard isEnabled, labels.indices.contains(i) else { return false }
+        if i != selectedSegment { selectedSegment=i;sendAction(action,to:target) }
+        return true
+    }
+    // VoiceOver sees a radio group with one radio button per output, each pressable on its own.
+    private lazy var segmentElements:[Segment]=labels.indices.map { Segment(owner:self,index:$0) }
     override func isAccessibilityElement()->Bool { true }
     override func accessibilityRole()->NSAccessibility.Role? { .radioGroup }
+    override func accessibilityChildren()->[Any]? { segmentElements }
+    fileprivate final class Segment:NSAccessibilityElement {
+        weak var owner:MenuSegments?
+        let index:Int
+        init(owner:MenuSegments,index:Int) { self.owner=owner;self.index=index;super.init();setAccessibilityParent(owner) }
+        override func accessibilityRole()->NSAccessibility.Role? { .radioButton }
+        override func accessibilityLabel()->String? { owner?.labels[index] }
+        override func accessibilityValue()->Any? { owner?.selectedSegment == index ? 1 : 0 }
+        override func isAccessibilityEnabled()->Bool { owner?.isEnabled ?? false }
+        override func accessibilityFrame()->NSRect {
+            guard let owner, let window=owner.window else { return .zero }
+            return window.convertToScreen(owner.convert(owner.rect(index),to:nil))
+        }
+        override func accessibilityPerformPress()->Bool { owner?.select(index) ?? false }
+    }
 }
 
 extension AppDelegate {
