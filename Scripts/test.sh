@@ -19,7 +19,7 @@ build/PolishTests
 
 # Use the real AppDelegate without the production entry point for UI localization checks.
 sed '/^@main struct Application/,$d' Sources/App.swift > build/AppDelegateForTests.swift
-xcrun swiftc -swift-version 5 -module-cache-path "$ADI2_CACHE" "${core[@]}" Sources/Theme.swift Sources/EQEditor.swift Sources/AppLayout.swift Sources/StatusKnob.swift Sources/InterfaceLanguage.swift build/AppDelegateForTests.swift Tests/LocalizationTests.swift -o build/LocalizationTests
+xcrun swiftc -swift-version 5 -module-cache-path "$ADI2_CACHE" "${core[@]}" Sources/Theme.swift Sources/EQEditor.swift Sources/AppLayout.swift Sources/StatusKnob.swift Sources/InterfaceLanguage.swift Sources/StatusMenu.swift build/AppDelegateForTests.swift Tests/LocalizationTests.swift -o build/LocalizationTests
 build/LocalizationTests
 
 xcrun clang++ -std=c++17 -fblocks -Wno-deprecated-declarations \
