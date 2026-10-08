@@ -4,6 +4,7 @@
 #include <CoreAudio/AudioServerPlugIn.h>
 #include <CoreAudio/CoreAudio.h>
 #include <vector>
+#include <map>
 #include <atomic>
 
 #include "AudioDevice.h"
@@ -100,7 +101,11 @@ class ProxyAudioDevice {
                                 Float32 &volumeFactorR);
     bool isConfigurationString(CFStringRef val);
     void parseConfigurationString(CFStringRef configString, ConfigType &action, CFStringRef &value);
-    void setConfigurationValue(ConfigType action, CFStringRef value);
+    enum class CommandResult { notACommand, applied, rejected };
+    /// Applies an "ADI2Native/4:key=value" box-name write in one step. The sender is the
+    /// HAL-reported client pid, so no separate Identify write can be interleaved by another process.
+    CommandResult handleConfigurationCommand(CFStringRef command, pid_t sender);
+    bool setConfigurationValue(ConfigType action, CFStringRef value);
     CFStringRef copyConfigurationValue(ConfigType action);
     CFStringRef copyDeviceNameFromStorage();
     void setDeviceName(CFStringRef newName);
@@ -503,8 +508,8 @@ class ProxyAudioDevice {
     Float64 inputOutputSampleDelta = -1;
     Float64 inputFinalFrameTime = -1;
     int inputCycleCount = 0;
-    ConfigType nextConfigurationToRead = ConfigType::none;
-    pid_t configuratorPid = 0;
+    /// Pending configuration reads, keyed by the requesting client's pid (guarded by stateMutex).
+    std::map<pid_t, ConfigType> pendingConfigurationReads;
     CFStringRef deviceName = NULL;
     CFStringRef boxName = NULL;
     CFStringRef outputDeviceUID = NULL;

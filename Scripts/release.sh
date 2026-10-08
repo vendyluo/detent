@@ -11,7 +11,7 @@ mkdir -p "$stage/ADI2 Native/build" "$stage/ADI2 Native/Scripts" build/release
 for bundle in 'ADI2 Native.app' ADI2Native.driver; do
  ditto "build/$bundle" "$stage/ADI2 Native/build/$bundle"
 done
-cp 安裝.command 解除安裝.command README.zh-TW.md LICENSE THIRD_PARTY_NOTICES.md "$stage/ADI2 Native/"
+cp Install.command Uninstall.command README.zh-TW.md LICENSE THIRD_PARTY_NOTICES.md "$stage/ADI2 Native/"
 cp Scripts/install-driver.sh Scripts/uninstall-driver.sh "$stage/ADI2 Native/Scripts/"
 dmg="$PWD/build/release/ADI2-Native.dmg"
 hdiutil create -ov -format UDZO -volname 'ADI2 Native' -srcfolder "$stage" "$dmg"

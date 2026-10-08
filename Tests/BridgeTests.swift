@@ -79,6 +79,25 @@ import CoreAudio
         audio.mute=false;b2.tick();clock.time += 0.5;b2.tick()
         assert(!audio.gate && !audio.configurations.contains("bridgeReady=1"))
         midi.acknowledge=true;midi.snapshot();clock.time += 0.5;b2.tick();assert(audio.gate)
+        // A locked output hands audio to the physical DAC instead of leaving a silent proxy, then resumes.
+        do {
+            let suite="local.ADI2Native.LockTests.\(UUID())",lockDefaults=UserDefaults(suiteName:suite)!
+            defer { lockDefaults.removePersistentDomain(forName:suite) }
+            let m=FakeMIDI(),a=FakeAudio(),t=Clock()
+            m.state[6]?[13]=1;a.normal=3;a.system=3
+            let lb=try Bridge(midi:m,audio:a,settings:Settings(lockDefaults),now:{t.time},startTimer:false)
+            try lb.enable();assert(lb.enabled && a.normal==2)
+            lb.select(channel:6)
+            assert(!lb.enabled && lb.wanted && a.normal==a.deviceID && a.system==a.deviceID && lb.controlSummary.contains("解鎖後"))
+            t.time += 2.1;lb.tick();assert(!lb.enabled && a.normal==a.deviceID)
+            m.hardware(6,13,0);t.time += 2.1;lb.tick();assert(lb.enabled && a.normal==2 && a.gate)
+            // Locking while active pauses the same way.
+            m.hardware(6,13,1);t.time += 0.1;lb.tick();assert(!lb.enabled && lb.wanted && a.normal==a.deviceID)
+            m.hardware(6,13,0);t.time += 2.1;lb.tick();assert(lb.enabled && a.normal==2)
+            // The user's original output is still what Disable restores.
+            lb.disable();assert(a.normal==3 && a.system==3)
+        }
+        print("PASS: locked output plays through the physical DAC, resumes when unlocked, and Disable still restores the original output")
         print("PASS: off-grid ceiling snaps without a clamp loop; lease renews during a continuous drag; unmute holds the gate until confirmed")
         print("PASS: range configuration/scalar failures stop renewal and roll back preferences; driver failure stops control; explicit retry recovers")
         print("PASS: startup/handshake, two-way volume, unrelated topology, reconnect with new IDs, sleep/wake, ceiling, mute without gain jump, manual routing, target persistence, restart, acknowledgement timeout")

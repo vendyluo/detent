@@ -1953,13 +1953,23 @@ OSStatus ProxyAudioDevice::GetBoxPropertyData(AudioServerPlugInDriverRef inDrive
             // See the comment in the switch case for 'kAudioObjectPropertyIdentify' in SetBoxPropertyData to get a
             // description of the crazy hackery that is going on here.
 
-            if (inClientProcessID == configuratorPid && nextConfigurationToRead != ConfigType::none) {
-                DebugMsg("ProxyAudio: returning config data type %d instead of box name", nextConfigurationToRead);
-                *((CFStringRef *)outData) = copyConfigurationValue(nextConfigurationToRead);
-                
-            } else {
-                CAMutex::Locker locker(stateMutex);
-                *((CFStringRef *)outData) = CFStringCreateCopy(NULL, boxName);
+            {
+                ConfigType pending = ConfigType::none;
+                {
+                    CAMutex::Locker locker(stateMutex);
+                    auto found = pendingConfigurationReads.find(inClientProcessID);
+                    if (found != pendingConfigurationReads.end()) {
+                        pending = found->second;
+                        pendingConfigurationReads.erase(found);
+                    }
+                }
+                if (pending != ConfigType::none) {
+                    DebugMsg("ProxyAudio: returning config data type %d instead of box name", pending);
+                    *((CFStringRef *)outData) = copyConfigurationValue(pending);
+                } else {
+                    CAMutex::Locker locker(stateMutex);
+                    *((CFStringRef *)outData) = CFStringCreateCopy(NULL, boxName);
+                }
             }
 
             *outDataSize = sizeof(CFStringRef);
@@ -2021,7 +2031,7 @@ OSStatus ProxyAudioDevice::GetBoxPropertyData(AudioServerPlugInDriverRef inDrive
                            Done,
                            "GetBoxPropertyData: not enough space for the return value of "
                            "kAudioObjectPropertyFirmwareVersion for the box");
-            *((CFStringRef *)outData) = CFSTR("ADI2Native/3");
+            *((CFStringRef *)outData) = CFSTR("ADI2Native/4");
             *outDataSize = sizeof(CFStringRef);
             break;
 
@@ -2204,17 +2214,10 @@ OSStatus ProxyAudioDevice::SetBoxPropertyData(AudioServerPlugInDriverRef inDrive
                 // See the comment in the switch case for 'kAudioObjectPropertyIdentify' to get a description of the
                 // crazy hackery that is going on here.
                 
-                if (inClientProcessID == configuratorPid) {
-                    DebugMsg("ProxyAudio: setting box name from configurator process, performing configuration action "
-                             "instead!");
-                    CFStringSmartRef value = nullptr;
-                    ConfigType action = ConfigType::none;
-                    parseConfigurationString(*newValue, action, value);
-
-                    if (action != ConfigType::none && value) {
-                        setConfigurationValue(action, value);
-                    }
-                } else {
+                const CommandResult command = handleConfigurationCommand(*newValue, inClientProcessID);
+                if (command == CommandResult::rejected) {
+                    theAnswer = kAudioHardwareIllegalOperationError;
+                } else if (command == CommandResult::notACommand) {
                     CAMutex::Locker locker(stateMutex);
 
                     if (boxName != NULL) {
@@ -2265,17 +2268,12 @@ OSStatus ProxyAudioDevice::SetBoxPropertyData(AudioServerPlugInDriverRef inDrive
                 // settings that can be written to at all, and aren't of particular importance to the operation of the
                 // driver.
 
-                if (signedValue != 0 && signedValue != 1) {
-                    if (signedValue < 0) {
-                        nextConfigurationToRead = ConfigType(-signedValue);
-                        DebugMsg("ProxyAudio: received signal, will return data on next call to box name: %d",
-                                 nextConfigurationToRead);
-                    } else {
-                        configuratorPid = signedValue;
-                        DebugMsg("ProxyAudio: received signal, configurator pid is: %d",
-                                 configuratorPid);
-                    }
-                    
+                // Protocol 4: a negative value requests a configuration read for this client only.
+                // Writes no longer use Identify; see handleConfigurationCommand.
+                if (signedValue < 0) {
+                    CAMutex::Locker locker(stateMutex);
+                    pendingConfigurationReads[inClientProcessID] = ConfigType(-signedValue);
+                    DebugMsg("ProxyAudio: pid %d will read config %d on next box name read", inClientProcessID, -signedValue);
                 }
             }
 
@@ -5528,16 +5526,33 @@ void ProxyAudioDevice::parseConfigurationString(CFStringRef configString, Config
                                                 CFStringGetLength(configString) - splitter.location - splitter.length));
 }
 
+ProxyAudioDevice::CommandResult ProxyAudioDevice::handleConfigurationCommand(CFStringRef command, pid_t sender) {
+    static const CFStringRef prefix = CFSTR("ADI2Native/4:");
+    if (command == NULL || !CFStringHasPrefix(command, prefix)) {
+        return CommandResult::notACommand;
+    }
+    const CFIndex prefixLength = CFStringGetLength(prefix);
+    CFStringSmartRef body = CFStringCreateWithSubstring(NULL, command, CFRangeMake(prefixLength, CFStringGetLength(command) - prefixLength));
+    CFStringSmartRef value = nullptr;
+    ConfigType action = ConfigType::none;
+    parseConfigurationString(body, action, value);
+    if (action == ConfigType::none || !value || !setConfigurationValue(action, value)) {
+        DebugMsg("ProxyAudio: rejected configuration command from pid %d", sender);
+        return CommandResult::rejected;
+    }
+    return CommandResult::applied;
+}
+
 #pragma mark Driver Configuration
 
-void ProxyAudioDevice::setConfigurationValue(ConfigType type, CFStringRef value) {
+bool ProxyAudioDevice::setConfigurationValue(ConfigType type, CFStringRef value) {
     switch (type) {
         case ConfigType::volumeRange: {
             float low, high;
             char extra;
             const auto spec = CFStringToStdString(value);
             if (sscanf(spec.c_str(), "%f,%f%c", &low, &high, &extra) != 2 ||
-                !std::isfinite(low) || !std::isfinite(high) || low < -114.5f || high > 0 || high - low < 6) break;
+                !std::isfinite(low) || !std::isfinite(high) || low < -114.5f || high > 0 || high - low < 6) return false;
             kVolume_MinDB.store(low);
             kVolume_MaxDB.store(high);
             if (gPlugIn_Host) {
@@ -5579,8 +5594,9 @@ void ProxyAudioDevice::setConfigurationValue(ConfigType type, CFStringRef value)
             break;
 
         default:
-            break;
+            return false;
     }
+    return true;
 }
 
 CFStringRef ProxyAudioDevice::copyConfigurationValue(ConfigType type) {

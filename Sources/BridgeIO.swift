@@ -25,13 +25,12 @@ struct SystemAudio: AudioTransport {
     func devices()->[AudioEndpoint] { Audio.devices() }
     func box() throws->AudioObjectID {
         let result=try Audio.box()
-        guard Audio.string(result,kAudioObjectPropertyFirmwareVersion)=="ADI2Native/3" else {
-            throw BridgeError.message(L("需要更新 ADI2Native 音訊驅動：請執行新版「安裝.command」", "Update the ADI2Native audio driver by running the new installer."))
+        guard Audio.string(result,kAudioObjectPropertyFirmwareVersion)==Audio.driverProtocol else {
+            throw BridgeError.message(L("需要更新 ADI2Native 音訊驅動：請執行新版 Install.command", "Update the ADI2Native audio driver by running the new installer."))
         }
         return result
     }
     func checkPlayback(_ box:AudioObjectID)throws {
-        try Audio.write(box,kAudioObjectPropertyIdentify,Int32(getpid()))
         try Audio.write(box,kAudioObjectPropertyIdentify,Int32(-8))
         let value=Audio.string(box,kAudioObjectPropertyName)
         guard let code=Int32(value) else { throw BridgeError.message(L("無法讀取驅動播放狀態", "Cannot read driver playback status")) }

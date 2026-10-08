@@ -15,7 +15,7 @@ final class Bridge {
     var controlSummary:String {
         if failureMessage != nil { return L("控制已停止 · 需要處理", "Control stopped · Action needed") }
         if !connected { return wanted ? L("裝置離線 · 等待自動重連", "Device offline · Reconnecting automatically") : L("裝置離線", "Device offline") }
-        if !synchronized { return L("DAC 音量已鎖定", "DAC volume is locked") }
+        if !synchronized { return wanted ? L("DAC 音量已鎖定 · 解鎖後自動恢復原生控制", "DAC volume locked · Native control resumes when unlocked") : L("DAC 音量已鎖定", "DAC volume is locked") }
         if enabled { return hasPending ? L("原生控制 · 正在同步", "Native control · Syncing") : L("原生控制 · 已啟用", "Native control · Enabled") }
         return wanted ? L("正在恢復原生控制…", "Restoring native control…") : L("直接控制 DAC · 原生控制未啟用", "Direct DAC control · Native control off")
     }
@@ -42,10 +42,13 @@ final class Bridge {
     private var lastActivationAttempt: TimeInterval = -1e9
     /// Set while an unmute or ceiling clamp awaits DAC confirmation; the playback lease stays closed until then.
     private var holdGate = false
+    /// Native control was paused because the DAC locked this output's volume; audio was handed to the physical DAC.
+    private var pausedForLock = false
     var db: Double? { values[channel]?[12].map { Double($0)/10 } }
     var hardwareMuted: Bool { values[channel]?[15] == 1 }
     var connected: Bool { now()-lastSeen < 3 && db != nil && values[channel]?[15] != nil }
     var synchronized: Bool { connected && values[channel]?[13] == 0 }
+    var locked: Bool { connected && (values[channel]?[13] ?? 0) != 0 }
     var hasPending: Bool { !pending.isEmpty }
     var eqAddress: Int { channel+1 }
     var eqEnabled: Bool { values[eqAddress]?[2] == 1 }
@@ -94,6 +97,7 @@ final class Bridge {
         let resume=wanted
         stop(restore:false); self.channel=channel
         if resume && synchronized { do { try activate() } catch { fail(error) } }
+        else if resume && locked { pauseForLock() }
         else { status=L("控制目標：\(channelName)", "Control target: \(channelName)") }
         onUpdate?()
     }
@@ -117,8 +121,10 @@ final class Bridge {
         try audio.configure(box,"deviceName=ADI-2 Native")
         try audio.configure(box,"volumeRange=\(range.minimum),\(range.maximum)")
         let route=try audio.defaultDevice(false), system=try audio.defaultDevice(true)
-        if route != p.id { priorOutputUID=uid(route) }
-        if system != p.id { priorSystemUID=uid(system) }
+        // After a lock pause the route is the physical DAC we chose; keep the user's original output for later restore.
+        if route != p.id && !pausedForLock { priorOutputUID=uid(route) }
+        if system != p.id && !pausedForLock { priorSystemUID=uid(system) }
+        pausedForLock=false
         // If a prior process crashed, the physical DAC is the recovery destination.
         if priorOutputUID == nil { priorOutputUID=targets[0].uid }
         if priorSystemUID == nil { priorSystemUID=targets[0].uid }
@@ -146,7 +152,19 @@ final class Bridge {
         }
         enabled=false; pending.removeAll(); holdGate=false; lastLease = -1e9
     }
-    func disable() { failureMessage=nil;setWanted(false); stop(restore:true); resumeRouteUID=nil; status=L("原生控制已停用", "Native control off"); onUpdate?() }
+    /// Keeps audio playing when the DAC locks the controlled volume: the proxy would otherwise stay
+    /// the default output with its gate closed. Hardware gain is unchanged, so there is no level jump.
+    private func pauseForLock() {
+        let proxyDevice=proxy ?? audio.devices().first(where:{$0.uid == Audio.proxyUID})
+        stop(restore:false)
+        if let p=proxyDevice, let dac=audio.devices().first(where:{$0.uid == settings.deviceUID && $0.uid != Audio.proxyUID}) {
+            for system in [false,true] where (try? audio.defaultDevice(system)) == p.id { try? audio.setDefault(dac.id,system) }
+        }
+        pausedForLock=true; resumeRouteUID=Audio.proxyUID
+        status=L("此輸出音量已在 DAC 上鎖定 · 已改由實體 DAC 播放，解鎖後自動恢復", "This output's volume is locked on the DAC · Playing through the physical DAC; resumes when unlocked")
+        onUpdate?()
+    }
+    func disable() { pausedForLock=false; failureMessage=nil;setWanted(false); stop(restore:true); resumeRouteUID=nil; status=L("原生控制已停用", "Native control off"); onUpdate?() }
     func shutdown() { timer?.invalidate(); stop(restore:true); midi.disconnect() }
     func rebindDevice() { disable(); settings.deviceUID=nil; status=L("已解除裝置綁定，下次啟用會綁定目前 DAC", "Device pairing cleared. The next activation will pair the connected DAC."); onUpdate?() }
     func setRange(_ newRange:VolumeRange) throws {
@@ -261,6 +279,7 @@ final class Bridge {
             }
             return
         }
+        if locked { pauseForLock(); return }
         guard synchronized, let p=proxy else { suspend(L("音量鎖定或狀態未同步，等待恢復…", "Volume locked or not synchronized. Waiting…")); return }
         do {
             guard try audio.defaultDevice(false)==p.id else { disable(); status=L("已切換至其他音訊輸出", "Switched to another audio output"); onUpdate?(); return }

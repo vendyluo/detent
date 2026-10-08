@@ -41,9 +41,11 @@ enum Audio {
         guard result != 0 else { throw BridgeError.message(L("尚未安裝 ADI2Native 音訊驅動", "ADI2Native audio driver is not installed")) }
         return result
     }
+    /// Driver protocol 4: one prefixed name write; the driver identifies the sender by pid and
+    /// rejects invalid commands with an error instead of silently ignoring them.
+    static let driverProtocol = "ADI2Native/4"
     static func configure(_ box: AudioObjectID, _ command: String) throws {
-        try write(box, kAudioObjectPropertyIdentify, Int32(getpid()))
-        let text = command as CFString
+        let text = "\(driverProtocol):\(command)" as CFString
         try withExtendedLifetime(text) {
             try write(box, kAudioObjectPropertyName, Unmanaged.passUnretained(text).toOpaque())
         }
