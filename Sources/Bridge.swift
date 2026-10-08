@@ -252,7 +252,9 @@ final class Bridge {
         lastSeen=now()
         if let (number,name)=RMEProtocol.presetName(msg) { presetNames[number]=name }
         for p in RMEProtocol.parameters(msg) {
-            if p.channel == 13 && p.index == 2 {
+            // EQ-Preset flags. RME's table lists them at index 2, but the ADI-2 DAC sends them at index 1
+            // (verified on hardware, firmware 2023): bits 8..4 are the preset number, all four low bits set means empty.
+            if p.channel == 13 && p.index == 1 {
                 let number=(p.value >> 4)+1
                 if p.value & 15 == 15 { emptyPresets.insert(number) } else { emptyPresets.remove(number) }
             }

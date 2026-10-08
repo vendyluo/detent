@@ -105,6 +105,17 @@ import CoreAudio
             m.hardware(3,2,0);assert(jb.iemPlugged == false)
         }
         print("PASS: IEM jack state is read from the Line Out address")
+        // Empty EQ presets are flagged on address 13, index 1 (as the hardware sends them), not index 2.
+        do {
+            let m=FakeMIDI(),t=Clock(),suite="local.Detent.PresetTests.\(UUID())",d=UserDefaults(suiteName:suite)!
+            defer { d.removePersistentDomain(forName:suite) }
+            let pb=try Bridge(midi:m,audio:FakeAudio(),settings:Settings(d),now:{t.time},startTimer:false)
+            m.hardware(13,1,15);m.hardware(13,1,31);m.hardware(13,1,2<<4)
+            assert(pb.emptyPresets == [1,2])
+            do { try pb.selectPreset(1);assertionFailure("selected an empty preset") } catch {}
+            m.hardware(13,1,0);assert(pb.emptyPresets == [2])
+        }
+        print("PASS: empty DAC EQ presets are recognized and cannot be selected")
         // Below the slider floor, steps move from the real level instead of jumping to the floor.
         do {
             let suite="local.Detent.FloorTests.\(UUID())",floorDefaults=UserDefaults(suiteName:suite)!

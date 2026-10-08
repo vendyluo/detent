@@ -185,7 +185,7 @@ extension AppDelegate {
         let eqReady=connected && bridge.eqState != nil && !editor.dirty
         eqItem.state=bridge.eqEnabled ? .on : .off;eqItem.isEnabled=eqReady
         btItem.state=bridge.btEnabled ? .on : .off;btItem.isEnabled=eqReady
-        let current=bridge.selectedPreset.map { $0-1 }.flatMap { (1...20).contains($0) ? $0 : nil }
+        let current=bridge.selectedPreset.map { $0-1 }.flatMap { (1...20).contains($0) && !bridge.emptyPresets.contains($0) ? $0 : nil }
         let currentName=current.flatMap { bridge.presetNames[$0] }.map { $0.isEmpty ? L("未命名", "Unnamed") : $0 }
         presetParent.title=currentName.map { L("DAC 預設：\($0)", "DAC preset: \($0)") } ?? L("DAC 預設", "DAC presets")
         presetParent.isEnabled=eqReady
