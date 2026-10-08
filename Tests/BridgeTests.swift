@@ -79,6 +79,38 @@ import CoreAudio
         audio.mute=false;b2.tick();clock.time += 0.5;b2.tick()
         assert(!audio.gate && !audio.configurations.contains("bridgeReady=1"))
         midi.acknowledge=true;midi.snapshot();clock.time += 0.5;b2.tick();assert(audio.gate)
+        // Balance survives syncing, and the louder side sets the DAC level.
+        do {
+            let suite="local.ADI2Native.BalanceTests.\(UUID())",balanceDefaults=UserDefaults(suiteName:suite)!
+            defer { balanceDefaults.removePersistentDomain(forName:suite) }
+            let m=FakeMIDI(),a=FakeAudio(),t=Clock()
+            let bb=try Bridge(midi:m,audio:a,settings:Settings(balanceDefaults),now:{t.time},startTimer:false)
+            try bb.enable()
+            a.scalar=0.6;a.rightScalar=0.3;t.time += 0.1;bb.tick()
+            assert(m.state[3]?[12] == Int((VolumeRange().decibels(0.6)*10).rounded()) && a.rightScalar == 0.3)
+            m.hardware(3,12,-200)
+            let s=VolumeRange().scalar(-20)
+            assert(abs(a.scalar-s)<0.0001 && abs((a.rightScalar ?? 0)-s/2)<0.0001)
+            // Full balance to one side is a level, not mute.
+            a.scalar=0.7;a.rightScalar=0;t.time += 0.1;bb.tick();assert(m.state[3]?[15] == 0)
+        }
+        print("PASS: left/right balance is preserved through sync and full balance does not mute")
+        // Below the slider floor, steps move from the real level instead of jumping to the floor.
+        do {
+            let suite="local.ADI2Native.FloorTests.\(UUID())",floorDefaults=UserDefaults(suiteName:suite)!
+            defer { floorDefaults.removePersistentDomain(forName:suite) }
+            let m=FakeMIDI(),a=FakeAudio(),t=Clock()
+            m.state[3]?[12] = -1000
+            let fb=try Bridge(midi:m,audio:a,settings:Settings(floorDefaults),now:{t.time},startTimer:false)
+            try fb.setRange(VolumeRange(minimum:-60,maximum:0));try fb.enable()
+            a.scalar += 0.0625;t.time += 0.1;fb.tick()
+            assert((-965...(-960)).contains(m.state[3]?[12] ?? 0) && a.scalar<0.001)
+            let before=m.state[3]?[12] ?? 0;try fb.setVolume(-59.5);assert(m.state[3]?[12] == before+5)
+            fb.disable();try fb.setVolume(-60.5);assert(m.state[3]?[12] == before)
+            try fb.enable();m.hardware(3,12,-605);a.scalar += 0.0625;t.time += 0.1;fb.tick()
+            assert((-570...(-565)).contains(m.state[3]?[12] ?? 0) && a.scalar>0.04)
+        }
+        print("PASS: below the slider floor, keys and buttons step from the real level; no jump to the floor")
         // Picking the proxy in Control Center while native control is off enables it, or falls back to the DAC.
         do {
             let suite="local.ADI2Native.PickTests.\(UUID())",pickDefaults=UserDefaults(suiteName:suite)!

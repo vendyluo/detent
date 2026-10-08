@@ -56,6 +56,9 @@ enum Audio {
     static func setVolume(_ id: AudioDeviceID, _ value: Float) throws {
         for channel: UInt32 in [1,2] { try write(id, kAudioDevicePropertyVolumeScalar, value, scope: kAudioObjectPropertyScopeOutput, element: channel) }
     }
+    static func setVolume(_ id: AudioDeviceID, left: Float, right: Float) throws {
+        for (channel, value) in [(UInt32(1), left), (UInt32(2), right)] { try write(id, kAudioDevicePropertyVolumeScalar, value, scope: kAudioObjectPropertyScopeOutput, element: channel) }
+    }
     static func muted(_ id: AudioDeviceID) throws -> Bool { try read(id, kAudioDevicePropertyMute, UInt32(0), scope: kAudioObjectPropertyScopeOutput) != 0 }
     static func setMute(_ id: AudioDeviceID, _ value: Bool) throws { try write(id,kAudioDevicePropertyMute,UInt32(value ? 1 : 0),scope:kAudioObjectPropertyScopeOutput) }
     static func defaultDevice(_ system: Bool = false) throws -> AudioDeviceID { try read(AudioObjectID(kAudioObjectSystemObject),system ? kAudioHardwarePropertyDefaultSystemOutputDevice : kAudioHardwarePropertyDefaultOutputDevice,AudioDeviceID(0)) }

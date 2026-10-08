@@ -152,8 +152,9 @@ final class AppDelegate:NSObject,NSApplicationDelegate,NSMenuDelegate,NSWindowDe
     func report(_ error:Error) { show();let a=NSAlert(error:error);a.beginSheetModal(for:window) }
     func attempt(_ action:()throws->Void) { do { try action();refresh(force:true) } catch { report(error) } }
     @objc func slide(_ sender:NSControl) { attempt { try bridge.setVolume(sender.doubleValue) } }
-    @objc func quieter() { attempt { try bridge.setVolume((bridge.db ?? -40)-0.5) } }
-    @objc func louder() { attempt { try bridge.setVolume((bridge.db ?? -40)+0.5) } }
+    // Step from the level the UI shows (the floor, when the hardware sits below it).
+    @objc func quieter() { attempt { try bridge.setVolume(max(bridge.db ?? -40,bridge.range.minimum)-0.5) } }
+    @objc func louder() { attempt { try bridge.setVolume(max(bridge.db ?? -40,bridge.range.minimum)+0.5) } }
     @objc func muteFromCheckbox() { attempt { try bridge.setMuted(mute.state == .on) } }
     @objc func toggleMute() { attempt { try bridge.setMuted(!bridge.hardwareMuted) } }
     @objc func toggleEQ() { attempt { try bridge.setEQEnabled(!bridge.eqEnabled) } }

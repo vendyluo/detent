@@ -39,6 +39,8 @@ final class FakeAudio:AudioTransport {
     var available=true, deviceID:AudioDeviceID=1, proxyID:AudioDeviceID=2
     var normal:AudioDeviceID=1, system:AudioDeviceID=1
     var scalar:Float=0, mute=false, gate=false
+    /// Right channel when the user has set a balance; nil means both channels equal `scalar`.
+    var rightScalar:Float?
     var configurations:[String]=[]
     var failRange=false, failVolume=false, playbackError=false
     func checkPlayback(_ box:AudioObjectID)throws { if playbackError { throw BridgeError.message("playback failed") } }
@@ -48,8 +50,9 @@ final class FakeAudio:AudioTransport {
     }
     func box()throws->AudioObjectID { 7 }
     func configure(_ b:AudioObjectID,_ s:String)throws { if failRange && s.hasPrefix("volumeRange=") { throw BridgeError.message("range failed") }; configurations.append(s); if s.hasPrefix("bridgeReady=") { gate=s.hasSuffix("1") } }
-    func volume(_ id:AudioDeviceID,_ c:UInt32)throws->Float { scalar }
-    func setVolume(_ id:AudioDeviceID,_ v:Float)throws { if failVolume { throw BridgeError.message("volume failed") }; scalar=v }
+    func volume(_ id:AudioDeviceID,_ c:UInt32)throws->Float { c==2 ? rightScalar ?? scalar : scalar }
+    func setVolume(_ id:AudioDeviceID,_ v:Float)throws { if failVolume { throw BridgeError.message("volume failed") }; scalar=v; rightScalar=nil }
+    func setVolume(_ id:AudioDeviceID,left:Float,right:Float)throws { if failVolume { throw BridgeError.message("volume failed") }; scalar=left; rightScalar=right }
     func muted(_ id:AudioDeviceID)throws->Bool { mute }
     func setMute(_ id:AudioDeviceID,_ v:Bool)throws { mute=v }
     func defaultDevice(_ s:Bool)throws->AudioDeviceID { s ? system : normal }

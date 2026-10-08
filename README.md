@@ -19,14 +19,14 @@ A Swift/AppKit app controls the DAC's hardware volume through USB MIDI. A Core A
 
 ## Status and requirements
 
-Source release: **App 0.5.0 / driver 0.3.0**. Local development build, not a notarized 1.0 release.
+Source release: **App 0.5.0 / driver 0.3.1**. Local development build, not a notarized 1.0 release.
 
 - Apple Silicon Mac; the build script targets macOS 13 or newer. Local hardware testing has been on macOS 27; other OS versions are not yet validated.
 - Xcode Command Line Tools (`xcode-select --install`).
 - Exactly one RME ADI-2 DAC connected over USB, with firmware supporting the official MIDI remote protocol. ADI-2 Pro and 2/4 Pro are not supported.
 - Administrator authentication to install the HAL driver.
 
-Seven test suites pass, including simulated failures and recovery. The latest 0.5.0 / 0.3.0 changes have passed compilation and automated tests; final installation/hardware verification is pending. Extended playback, physical reconnect and sleep/wake coverage across machines remains incomplete.
+Seven test suites pass, including simulated failures and recovery. The latest 0.5.0 / 0.3.1 changes have passed compilation and automated tests; final installation/hardware verification is pending. Extended playback, physical reconnect and sleep/wake coverage across machines remains incomplete.
 
 ## Build and test
 
@@ -56,8 +56,9 @@ To uninstall, quit the app and run `./Uninstall.command`. This removes the HAL d
 - The proxy does not apply a second digital attenuation: hardware gain is set on the DAC. It adds buffering (512 frames by default).
 - The volume ceiling is software-enforced while native control is enabled; the physical knob can briefly exceed it. It is not a hardware hearing-protection limiter.
 - Selecting Line Out/Phones/IEM selects the controlled volume, not the DAC's physical audio route.
+- The macOS balance setting is kept but not applied: gain is set on the DAC, so use the DAC's own balance setting.
 - If the DAC locks the controlled output's volume, playback moves to the physical DAC and native control resumes automatically once it is unlocked.
-- Driver 0.3.0 uses configuration protocol 4. After updating the app, run `./Install.command` again; the app reports an outdated driver until you do.
+- Driver 0.3.x uses configuration protocol 4. After updating the app, run `./Install.command` again; the app reports an outdated driver until you do.
 - Stereo PCM only; DSD/DoP and exclusive playback are unsupported. Players using the physical DAC directly bypass the proxy.
 - A missing app lease silences proxy playback. If recovery fails, manually select the physical DAC in macOS Sound settings.
 - EQ response graphs are approximate. Applying edits changes current settings, not stored preset slots.

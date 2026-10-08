@@ -5457,7 +5457,8 @@ void ProxyAudioDevice::calculateVolumeFactors(Float32 volumeL,
                                               Float32 &volumeFactorR) {
     // Hardware applies gain. Silence unless a live, synchronized bridge renews its lease.
     const bool live = mach_absolute_time() < bridgeDeadline.load(std::memory_order_relaxed);
-    volumeFactorL = volumeFactorR = (live && !mute && volumeL > 0 && volumeR > 0) ? 1.0f : 0.0f;
+    // Balance may take one side to zero; only both sides at zero (or NaN) means silence.
+    volumeFactorL = volumeFactorR = (live && !mute && (volumeL > 0 || volumeR > 0)) ? 1.0f : 0.0f;
 }
 
 OSStatus ProxyAudioDevice::EndIOOperation(AudioServerPlugInDriverRef inDriver,

@@ -16,6 +16,7 @@ protocol AudioTransport {
     func configure(_ box:AudioObjectID,_ command:String) throws
     func volume(_ id:AudioDeviceID,_ channel:UInt32) throws -> Float
     func setVolume(_ id:AudioDeviceID,_ value:Float) throws
+    func setVolume(_ id:AudioDeviceID,left:Float,right:Float) throws
     func muted(_ id:AudioDeviceID) throws -> Bool
     func setMute(_ id:AudioDeviceID,_ value:Bool) throws
     func defaultDevice(_ system:Bool) throws -> AudioDeviceID
@@ -39,6 +40,7 @@ struct SystemAudio: AudioTransport {
     func configure(_ box:AudioObjectID,_ command:String)throws { try Audio.configure(box,command) }
     func volume(_ id:AudioDeviceID,_ channel:UInt32)throws->Float { try Audio.volume(id,channel) }
     func setVolume(_ id:AudioDeviceID,_ value:Float)throws { try Audio.setVolume(id,value) }
+    func setVolume(_ id:AudioDeviceID,left:Float,right:Float)throws { try Audio.setVolume(id,left:left,right:right) }
     func muted(_ id:AudioDeviceID)throws->Bool { try Audio.muted(id) }
     func setMute(_ id:AudioDeviceID,_ value:Bool)throws { try Audio.setMute(id,value) }
     func defaultDevice(_ system:Bool)throws->AudioDeviceID { try Audio.defaultDevice(system) }

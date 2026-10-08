@@ -139,7 +139,7 @@ final class Bridge {
         if priorOutputUID == nil { priorOutputUID=targets[0].uid }
         if priorSystemUID == nil { priorSystemUID=targets[0].uid }
         lastScalar=range.scalar(min(db,range.maximum)); lastMute=hardwareMuted
-        try audio.setVolume(p.id,lastScalar); try audio.setMute(p.id,lastMute)
+        try writeProxy(p.id,lastScalar); try audio.setMute(p.id,lastMute)
         enabled=true
         do {
             try audio.setDefault(p.id,false); try audio.setDefault(p.id,true)
@@ -161,6 +161,12 @@ final class Bridge {
             }
         }
         enabled=false; pending.removeAll(); holdGate=false; lastLease = -1e9
+    }
+    /// Sets the proxy's main level while keeping the user's left/right balance.
+    private func writeProxy(_ id:AudioDeviceID,_ value:Float) throws {
+        if let l=try? audio.volume(id,1), let r=try? audio.volume(id,2), max(l,r)>0.00005, abs(l-r)>0.00005 {
+            let peak=max(l,r); try audio.setVolume(id,left:value*l/peak,right:value*r/peak)
+        } else { try audio.setVolume(id,value) }
     }
     private func adoptProxySelection() {
         lastActivationAttempt=now()
@@ -202,7 +208,7 @@ final class Bridge {
                 try audio.configure(box,"bridgeReady=0")
                 try audio.configure(box,"volumeRange=\(newRange.minimum),\(newRange.maximum)")
                 lastScalar=newRange.scalar(min(db,newRange.maximum))
-                try audio.setVolume(p.id,lastScalar)
+                try writeProxy(p.id,lastScalar)
                 try settings.setRange(newRange,channel:channel)
                 if db > newRange.maximum { holdGate=true; try send([RMEParameter(channel:channel,index:12,value:Int((newRange.maximum*10).rounded()))]) }
                 lastLease = -1e9
@@ -216,8 +222,13 @@ final class Bridge {
     }
     func setVolume(_ value:Double) throws {
         guard synchronized, value.isFinite else { throw BridgeError.message(L("DAC 尚未同步或音量無效", "DAC is not synchronized, or volume is invalid")) }
-        let v=min(range.maximum,max(range.minimum,value))
-        if enabled, let p=proxy { try audio.setVolume(p.id,range.scalar(v)) }
+        // Below the slider floor the UI shows the floor. Move relative to the real hardware level so
+        // one step is one step, instead of jumping straight up to the floor.
+        let below=(db ?? range.minimum) < range.minimum
+        var v=value
+        if below, let current=db { v=current+(value-range.minimum) }
+        v=min(range.maximum,max(below ? -114.5 : range.minimum,v))
+        if enabled, let p=proxy, v >= range.minimum { try writeProxy(p.id,range.scalar(v)) }
         else { try send([RMEParameter(channel:channel,index:12,value:Int((v*10).rounded()))]) }
     }
     func setMuted(_ value:Bool) throws {
@@ -254,8 +265,8 @@ final class Bridge {
                 do { holdGate=true; try audio.configure(box,"bridgeReady=0"); try send([RMEParameter(channel:channel,index:12,value:Int((range.maximum*10).rounded()))]) }
                 catch { fail(error) }
             } else if let l=try? audio.volume(p.id,1), let r=try? audio.volume(p.id,2), let m=try? audio.muted(p.id),
-                      abs(l-lastScalar)<0.00005, abs(r-lastScalar)<0.00005, m==lastMute {
-                do { lastScalar=range.scalar(db); lastMute=hardwareMuted; try audio.setVolume(p.id,lastScalar); try audio.setMute(p.id,lastMute) }
+                      abs(max(l,r)-lastScalar)<0.00005, m==lastMute {
+                do { lastScalar=range.scalar(db); lastMute=hardwareMuted; try writeProxy(p.id,lastScalar); try audio.setMute(p.id,lastMute) }
                 catch { fail(error) }
             }
         }
@@ -312,16 +323,25 @@ final class Bridge {
             guard try audio.defaultDevice(false)==p.id else { disable(); status=L("已切換至其他音訊輸出", "Switched to another audio output"); onUpdate?(); return }
             let l=try audio.volume(p.id,1), r=try audio.volume(p.id,2), m=try audio.muted(p.id)
             guard l.isFinite && r.isFinite else { throw BridgeError.message(L("系統音量數值無效", "Invalid system volume value")) }
-            let s=abs(l-lastScalar)>0.00005 ? l : r
-            let volumeChanged=abs(s-lastScalar)>0.00005
+            // The louder channel is the main level; the other side only carries the user's balance.
+            let peak=max(l,r)
+            let volumeChanged=abs(peak-lastScalar)>0.00005
             if volumeChanged || m != lastMute {
                 if lastMute && !m { holdGate=true; try audio.configure(box,"bridgeReady=0") }
                 var changes:[RMEParameter]=[]
-                if volumeChanged { changes.append(RMEParameter(channel:channel,index:12,value:Int((range.decibels(s)*10).rounded()))) }
-                let mute=m || s<=0
+                var target=range.decibels(peak), level=peak
+                // Below the floor every slider position near zero means "the floor"; step from the
+                // real hardware level instead so one key press cannot jump tens of dB.
+                if volumeChanged, let current=db, current < range.minimum {
+                    target=max(-114.5,current+range.decibels(peak)-range.decibels(lastScalar))
+                    level=range.scalar(target)
+                }
+                if volumeChanged { changes.append(RMEParameter(channel:channel,index:12,value:Int((target*10).rounded()))) }
+                let mute=m || peak<=0
                 changes.append(RMEParameter(channel:channel,index:15,value:mute ? 1 : 0))
-                lastScalar=s; lastMute=mute
-                try audio.setVolume(p.id,s); try audio.setMute(p.id,mute)
+                lastScalar=level; lastMute=mute
+                if abs(level-peak)>0.00005 { try writeProxy(p.id,level) }
+                try audio.setMute(p.id,mute)
                 try send(changes); lastLease = -1e9
             }
             // Plain volume changes keep the lease alive while their acknowledgements are in flight;

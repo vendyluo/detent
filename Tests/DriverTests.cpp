@@ -13,6 +13,7 @@ int main() {
     d.calculateVolumeFactors(0.9,0.9,true,l,r); assert(l==0 && r==0);
     d.calculateVolumeFactors(0,0,false,l,r); assert(l==0 && r==0);
     d.calculateVolumeFactors(NAN,NAN,false,l,r); assert(l==0 && r==0);
+    d.calculateVolumeFactors(0.9,0,false,l,r); assert(l==1 && r==1);
     d.setConfigurationValue(ProxyAudioDevice::ConfigType::bridgeReady,CFSTR("0"));
     d.calculateVolumeFactors(0.9,0.9,false,l,r); assert(l==0 && r==0);
     d.setConfigurationValue(ProxyAudioDevice::ConfigType::bridgeReady,CFSTR("1"));
