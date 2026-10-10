@@ -51,13 +51,13 @@ Icons are generated locally by `Scripts/render-icons.swift`, which also writes t
 ## Install and use
 
 1. Quit any running Detent app.
-2. Run `./Install.command` and complete the macOS administrator prompt. Installation briefly restarts the Mac audio service.
+2. Run `./Install.command` and complete the macOS administrator prompt. It installs the driver, copies the app to `/Applications/Detent.app` and opens it. Installation briefly restarts the Mac audio service.
 3. Choose a control target and enable native volume control in the app.
 4. Keep the app running; closing the window leaves menu bar control active.
 
-Keep the app at the same path after enabling launch at login. Moving it requires setting up login launch again.
+Launch at login points to `/Applications/Detent.app`. If you moved the app or ran it from `build/` before, turn launch at login off and on again.
 
-To uninstall, quit the app and run `./Uninstall.command`. This removes the HAL driver and restarts the audio service; project files remain.
+To uninstall, quit the app and run `./Uninstall.command`. This removes the HAL driver and `/Applications/Detent.app` and restarts the audio service; project files remain.
 
 ## Behavior and limitations
 

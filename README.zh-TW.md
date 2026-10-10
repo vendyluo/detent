@@ -31,11 +31,11 @@ cd detent
 ./Install.command
 ```
 
-安裝前先結束 App。安裝驅動需要在 macOS 視窗完成管理員驗證，會短暫重新啟動音訊服務。之後選擇控制目標並啟用原生音量即可。關閉視窗仍會在選單列執行；可在設定調整 Dock 顯示、登入啟動及語言。
+安裝前先結束 App。安裝驅動需要在 macOS 視窗完成管理員驗證，會短暫重新啟動音訊服務；App 會複製到 `/Applications/Detent.app` 並自動開啟。之後選擇控制目標並啟用原生音量即可。關閉視窗仍會在選單列執行；可在設定調整 Dock 顯示、登入啟動及語言。
 
-開啟登入啟動後請保留 App 路徑；若移動 App，需重新設定登入啟動。
+登入啟動會指向 `/Applications/Detent.app`。若之前從 `build/` 執行或移動過 App，請在設定把登入啟動關掉再打開。
 
-解除安裝：結束 App 後執行 `./Uninstall.command`，移除驅動但保留專案檔案。
+解除安裝：結束 App 後執行 `./Uninstall.command`，移除驅動與 `/Applications/Detent.app`，但保留專案檔案。
 
 ## 使用限制
 

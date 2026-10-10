@@ -10,3 +10,8 @@ on run argv
  do shell script "/bin/bash " & quoted form of (item 1 of argv) with administrator privileges
 end run
 APPLESCRIPT
+app='/Applications/Detent.app'
+if [[ -e "$app" && "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Contents/Info.plist" 2>/dev/null || true)" == 'local.Detent.App' ]]; then
+ /bin/rm -rf "$app"
+ echo "已移除 $app / Removed $app"
+fi

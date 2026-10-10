@@ -18,4 +18,17 @@ on run argv
  do shell script "/bin/bash " & quoted form of (item 1 of argv) with administrator privileges
 end run
 APPLESCRIPT
-/usr/bin/open "$PWD/build/Detent.app"
+# Install the app in /Applications so launch at login keeps a stable path.
+app='/Applications/Detent.app'
+for old in "$app" /Applications/ADI2Native.app; do
+ if [[ -e "$old" ]]; then
+  id="$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$old/Contents/Info.plist" 2>/dev/null || true)"
+  if [[ "$id" != 'local.Detent.App' && "$id" != 'local.ADI2Native.App' ]]; then
+   echo "$old 不是 Detent，未覆蓋。 / $old is not Detent; left untouched."; exit 1
+  fi
+  /bin/rm -rf "$old"
+ fi
+done
+/usr/bin/ditto build/Detent.app "$app"
+echo "App 已安裝到 $app / App installed to $app"
+/usr/bin/open "$app"
