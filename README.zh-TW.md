@@ -72,13 +72,13 @@ export ADI2_SIGN_IDENTITY='Developer ID Application: YOUR NAME (TEAM_ID)'
 首次公證前，在自己的終端機互動設定認證（不要把密碼寫入腳本或版本庫）：
 
 ```sh
-xcrun notarytool store-credentials adi2-notary --apple-id YOUR_APPLE_ID --team-id YOUR_TEAM_ID
+xcrun notarytool store-credentials notary --apple-id YOUR_APPLE_ID --team-id YOUR_TEAM_ID
 ```
 
 依提示輸入 Apple 帳號網站產生的 App 專用密碼，然後執行：
 
 ```sh
-ADI2_NOTARY_PROFILE=adi2-notary ./Scripts/release.sh
+ADI2_NOTARY_PROFILE=notary ./Scripts/release.sh
 ```
 
 腳本只有在 Apple 回報 Accepted 後才附加公證票證，並檢查票證及 Gatekeeper。
